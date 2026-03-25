@@ -1,0 +1,12 @@
+# Force HTTPS (handled by Netlify automatically, but explicit is better)
+# http://rvolutionx.be/*   https://www.rvolutionx.be/:splat  301
+
+# www → non-www (or inverse — choose ONE and uncomment)
+# https://www.rvolutionx.be/*  https://rvolutionx.be/:splat  301
+
+# Old Wix URLs → new pages
+/rvolutionx-2              /                     301
+/rvolutionx-2/*            /:splat               301
+
+# Custom 404
+/*   /404.html   404

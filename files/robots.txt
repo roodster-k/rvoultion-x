@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /merci.html
+Disallow: /mentions-legales.html
+
+Sitemap: https://www.rvolutionx.be/sitemap.xml

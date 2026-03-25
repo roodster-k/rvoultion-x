@@ -1,0 +1,27 @@
+{
+  "name": "Rvolution X",
+  "short_name": "RvolutionX",
+  "description": "Stratégie digitale pour chirurgiens plasticiens en Belgique",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07070f",
+  "theme_color": "#818cf8",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/assets/icons/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
