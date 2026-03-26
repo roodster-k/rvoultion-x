@@ -1,0 +1,134 @@
+/* RVolution X - Custom Styles */
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Page transitions */
+.page-transition {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* FAQ Smart Advisor styles */
+.faq-advisor-card {
+    transition: all 0.3s ease;
+}
+.faq-advisor-card:hover {
+    transform: translateY(-2px);
+}
+.faq-advisor-card.active {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.05);
+}
+
+/* Service recommendation highlight */
+.service-recommended {
+    position: relative;
+    overflow: hidden;
+}
+.service-recommended::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(6, 182, 212, 0.1));
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+.service-recommended:hover::before,
+.service-recommended.highlighted::before {
+    opacity: 1;
+}
+
+/* Animated gradient border */
+.gradient-border {
+    position: relative;
+}
+.gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #6366f1, #06b6d4, #10b981);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+.gradient-border:hover::before {
+    opacity: 1;
+}
+
+/* Progress indicator for FAQ */
+.progress-step {
+    transition: all 0.3s ease;
+}
+.progress-step.active {
+    color: white;
+}
+.progress-step.active .step-dot {
+    background: #6366f1;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+}
+.progress-step.completed .step-dot {
+    background: #10b981;
+}
+.progress-line {
+    transition: background 0.5s ease;
+}
+.progress-line.active {
+    background: linear-gradient(to right, #10b981, #6366f1);
+}
+
+/* Typing animation for FAQ result */
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+.typing-text {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: typing 1s steps(40) forwards;
+}
+
+/* Project card hover */
+.project-card {
+    transition: all 0.4s ease;
+}
+.project-card:hover {
+    transform: translateY(-4px);
+}
+.project-card:hover .project-overlay {
+    opacity: 1;
+}
+
+/* Contact form focus styles */
+.form-input:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Intersection Observer animation classes */
+.reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s ease;
+}
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="RVolution X - Agence digitale nouvelle génération. Conception web, stratégie digitale et solutions innovantes pour propulser vos projets.">
+    <title>RVolution X - The Digital Frontier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-neutral-950 text-neutral-300 font-sans antialiased selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden relative" style="background-image: radial-gradient(circle at 50% 0%, rgba(30, 27, 75, 0.4), transparent 50%), radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 100% 100%, 32px 32px;">
+
+    <!-- Background Animated Orbs -->
+    <div class="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none"></div>
+    <div class="absolute top-0 -right-4 w-72 h-72 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none" style="animation-delay: 2s;"></div>
+    <div class="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none" style="animation-delay: 4s;"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-neutral-950/50 border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <a href="index.html" class="text-xl font-bold tracking-tighter text-white">RVolution<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">X</span></a>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+                <a href="index.html" class="text-white">Accueil</a>
+                <a href="services.html" class="hover:text-white transition-colors">Services</a>
+                <a href="projects.html" class="hover:text-white transition-colors">Projets</a>
+                <a href="about.html" class="hover:text-white transition-colors">A propos</a>
+                <a href="contact.html" class="hover:text-white transition-colors">Contact</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="contact.html" class="group relative inline-flex items-center justify-center px-5 py-2 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:border-white/20">
+                    <span class="relative z-10">Demarrer un projet</span>
+                    <div class="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                </a>
+                <!-- Mobile menu button -->
+                <button id="mobile-menu-btn" class="md:hidden text-white">
+                    <iconify-icon icon="solar:hamburger-menu-linear" style="font-size: 1.5rem;"></iconify-icon>
+                </button>
+            </div>
+        </div>
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 bg-neutral-950/95 backdrop-blur-md">
+            <div class="px-6 py-4 flex flex-col gap-4">
+                <a href="index.html" class="text-sm font-medium text-white">Accueil</a>
+                <a href="services.html" class="text-sm font-medium text-neutral-400 hover:text-white transition-colors">Services</a>
+                <a href="projects.html" class="text-sm font-medium text-neutral-400 hover:text-white transition-colors">Projets</a>
+                <a href="about.html" class="text-sm font-medium text-neutral-400 hover:text-white transition-colors">A propos</a>
+                <a href="contact.html" class="text-sm font-medium text-neutral-400 hover:text-white transition-colors">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-6 relative z-10 text-center flex flex-col items-center">
+
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-xs font-medium mb-8 animate-fade-in-up" style="animation-delay: 0.1s;">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                Agence digitale nouvelle generation
+            </div>
+
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-semibold tracking-tighter text-white mb-6 max-w-4xl mx-auto animate-fade-in-up" style="animation-delay: 0.2s; line-height: 1.1;">
+                Architectes du
+                <br class="hidden md:block">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400">digital de demain.</span>
+            </h1>
+
+            <p class="text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto mb-10 font-medium animate-fade-in-up" style="animation-delay: 0.3s;">
+                Nous concevons des experiences digitales sur-mesure qui transforment vos idees en projets concrets, performants et scalables.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center gap-4 animate-fade-in-up" style="animation-delay: 0.4s;">
+                <a href="services.html" class="w-full sm:w-auto px-6 py-3 text-sm font-medium text-black bg-white rounded-full hover:bg-neutral-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]">
+                    Decouvrir nos services
+                </a>
+                <a href="projects.html" class="w-full sm:w-auto px-6 py-3 text-sm font-medium text-white bg-neutral-900 border border-white/10 rounded-full hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2">
+                    <iconify-icon icon="solar:eye-linear" style="font-size: 1.25rem;"></iconify-icon>
+                    Voir nos projets
+                </a>
+            </div>
+
+            <!-- Dashboard Mockup -->
+            <div class="mt-20 w-full max-w-5xl mx-auto relative animate-fade-in-up" style="animation-delay: 0.6s;">
+                <div class="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent z-10 pointer-events-none"></div>
+                <div class="relative rounded-2xl border border-white/10 bg-neutral-900/50 backdrop-blur-xl overflow-hidden shadow-2xl p-2">
+                    <div class="flex items-center gap-2 px-4 py-3 border-b border-white/5">
+                        <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                        <div class="ml-4 text-xs font-medium text-neutral-500">rvolutionx.dev</div>
+                    </div>
+                    <div class="p-6 md:p-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="col-span-1 md:col-span-2 space-y-4">
+                            <div class="h-8 w-48 bg-white/5 rounded-lg animate-pulse"></div>
+                            <div class="h-32 w-full bg-gradient-to-br from-indigo-500/10 to-transparent border border-white/5 rounded-xl flex items-center justify-center">
+                                <span class="text-sm text-indigo-400/60 font-medium">Votre projet, notre expertise</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="h-24 bg-white/5 rounded-xl border border-white/5 flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="text-2xl font-bold text-white">98%</div>
+                                        <div class="text-xs text-neutral-500">Satisfaction</div>
+                                    </div>
+                                </div>
+                                <div class="h-24 bg-white/5 rounded-xl border border-white/5 flex items-center justify-center">
+                                    <div class="text-center">
+                                        <div class="text-2xl font-bold text-white">50+</div>
+                                        <div class="text-xs text-neutral-500">Projets livres</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-1 space-y-4">
+                            <div class="h-full w-full bg-white/5 rounded-xl border border-white/5 p-4 flex flex-col gap-3">
+                                <div class="h-6 w-full bg-white/10 rounded animate-pulse"></div>
+                                <div class="h-4 w-3/4 bg-white/5 rounded"></div>
+                                <div class="h-4 w-5/6 bg-white/5 rounded"></div>
+                                <div class="h-4 w-1/2 bg-white/5 rounded"></div>
+                                <div class="mt-auto h-10 w-full bg-indigo-500/20 border border-indigo-500/30 rounded-lg flex items-center justify-center text-xs text-indigo-300 font-medium">Lancer le projet</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Services Bento Grid -->
+    <section id="services" class="py-24 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-16">
+                <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-white mb-4">Nos expertises.</h2>
+                <p class="text-base text-neutral-400 max-w-xl font-medium">Des solutions digitales completes pour transformer votre vision en realite, de la conception au deploiement.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[240px]">
+                <!-- Card 1 - Web Design -->
+                <div class="group relative md:col-span-2 row-span-1 bg-neutral-900/40 border border-white/10 rounded-3xl p-8 overflow-hidden hover:bg-neutral-900/60 transition-colors">
+                    <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-auto text-white">
+                            <iconify-icon icon="solar:monitor-linear" style="font-size: 1.5rem;"></iconify-icon>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-white tracking-tight mb-2">Conception Web & UX</h3>
+                            <p class="text-sm text-neutral-400 font-medium">Sites vitrines, e-commerce et applications web sur-mesure avec un design moderne et une experience utilisateur optimale.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2 - Strategy -->
+                <div class="group relative col-span-1 row-span-1 bg-neutral-900/40 border border-white/10 rounded-3xl p-8 overflow-hidden hover:bg-neutral-900/60 transition-colors">
+                    <div class="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-auto text-white">
+                            <iconify-icon icon="solar:chart-2-linear" style="font-size: 1.5rem;"></iconify-icon>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-white tracking-tight mb-2">Strategie Digitale</h3>
+                            <p class="text-sm text-neutral-400 font-medium">Audit, conseil et accompagnement pour maximiser votre impact en ligne.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3 - Branding -->
+                <div class="group relative col-span-1 row-span-1 bg-neutral-900/40 border border-white/10 rounded-3xl p-8 overflow-hidden hover:bg-neutral-900/60 transition-colors">
+                    <div class="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-40 transition-opacity">
+                        <iconify-icon icon="solar:pallete-2-linear" style="font-size: 6rem;"></iconify-icon>
+                    </div>
+                    <div class="relative z-10 flex flex-col h-full justify-end">
+                        <h3 class="text-xl font-semibold text-white tracking-tight mb-2">Branding & Identite</h3>
+                        <p class="text-sm text-neutral-400 font-medium">Logos, chartes graphiques et identites visuelles memorables.</p>
+                    </div>
+                </div>
+
+                <!-- Card 4 - AI & Innovation -->
+                <div class="group relative md:col-span-2 row-span-1 bg-neutral-900/40 border border-white/10 rounded-3xl p-8 overflow-hidden hover:bg-neutral-900/60 transition-colors">
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-1/2 h-full bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0,transparent_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                    <div class="relative z-10 flex flex-col h-full md:w-2/3">
+                        <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-auto text-emerald-400">
+                            <iconify-icon icon="solar:magic-stick-3-linear" style="font-size: 1.5rem;"></iconify-icon>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-white tracking-tight mb-2">IA & Innovation</h3>
+                            <p class="text-sm text-neutral-400 font-medium">Integration d'intelligence artificielle et de solutions innovantes pour automatiser et optimiser vos processus metier.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-10 text-center">
+                <a href="services.html" class="inline-flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Voir tous nos services
+                    <iconify-icon icon="solar:arrow-right-linear" style="font-size: 1rem;"></iconify-icon>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why RVX Section -->
+    <section class="py-24 border-t border-white/5 bg-neutral-950/50">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col lg:flex-row gap-16 items-center">
+                <div class="lg:w-1/2">
+                    <h2 class="text-3xl md:text-4xl font-semibold tracking-tight text-white mb-6">Pourquoi RVolution X ?</h2>
+                    <p class="text-base text-neutral-400 font-medium mb-8">Une approche centree sur vos objectifs, avec des technologies de pointe et un accompagnement personnalise a chaque etape.</p>
+
+                    <ul class="space-y-4">
+                        <li class="flex items-center gap-3 text-sm font-medium text-neutral-300">
+                            <iconify-icon icon="solar:check-circle-linear" class="text-indigo-400" style="font-size: 1.25rem;"></iconify-icon>
+                            Approche sur-mesure et collaborative
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-neutral-300">
+                            <iconify-icon icon="solar:check-circle-linear" class="text-indigo-400" style="font-size: 1.25rem;"></iconify-icon>
+                            Technologies modernes et performantes
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-neutral-300">
+                            <iconify-icon icon="solar:check-circle-linear" class="text-indigo-400" style="font-size: 1.25rem;"></iconify-icon>
+                            Accompagnement de A a Z
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-medium text-neutral-300">
+                            <iconify-icon icon="solar:check-circle-linear" class="text-indigo-400" style="font-size: 1.25rem;"></iconify-icon>
+                            Resultats mesurables et ROI optimise
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="lg:w-1/2 w-full">
+                    <!-- Stats Panel -->
+                    <div class="p-8 rounded-3xl border border-white/10 bg-neutral-900/50 backdrop-blur-sm shadow-2xl">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="text-center p-6 rounded-2xl bg-white/5 border border-white/5">
+                                <div class="text-3xl font-bold text-white mb-1">50+</div>
+                                <div class="text-xs text-neutral-400 font-medium">Projets realises</div>
+                            </div>
+                            <div class="text-center p-6 rounded-2xl bg-white/5 border border-white/5">
+                                <div class="text-3xl font-bold text-white mb-1">98%</div>
+                                <div class="text-xs text-neutral-400 font-medium">Clients satisfaits</div>
+                            </div>
+                            <div class="text-center p-6 rounded-2xl bg-white/5 border border-white/5">
+                                <div class="text-3xl font-bold text-white mb-1">24h</div>
+                                <div class="text-xs text-neutral-400 font-medium">Temps de reponse</div>
+                            </div>
+                            <div class="text-center p-6 rounded-2xl bg-white/5 border border-white/5">
+                                <div class="text-3xl font-bold text-white mb-1">5+</div>
+                                <div class="text-xs text-neutral-400 font-medium">Annees d'experience</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 relative z-10">
+        <div class="max-w-4xl mx-auto px-6 text-center">
+            <h2 class="text-3xl md:text-5xl font-semibold tracking-tight text-white mb-6">Pret a lancer votre projet ?</h2>
+            <p class="text-base text-neutral-400 font-medium mb-10 max-w-xl mx-auto">Discutons ensemble de votre vision. Notre FAQ intelligente peut aussi vous aider a identifier le service ideal pour votre besoin.</p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="contact.html" class="w-full sm:w-auto px-8 py-3.5 text-sm font-medium text-black bg-white rounded-full hover:bg-neutral-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                    Nous contacter
+                </a>
+                <a href="services.html#faq" class="w-full sm:w-auto px-8 py-3.5 text-sm font-medium text-white bg-neutral-900 border border-white/10 rounded-full hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2">
+                    <iconify-icon icon="solar:chat-dots-linear" style="font-size: 1.25rem;"></iconify-icon>
+                    FAQ Intelligente
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-neutral-950 pt-16 pb-8">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-start gap-10 mb-16">
+                <div>
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white inline-block mb-4">RVolution<span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">X</span></a>
+                    <p class="text-sm text-neutral-500 font-medium max-w-xs">Agence digitale nouvelle generation. Nous transformons vos idees en experiences digitales performantes.</p>
+                </div>
+                <div class="flex gap-16">
+                    <div class="flex flex-col gap-3">
+                        <span class="text-sm font-semibold text-white tracking-tight mb-1">Services</span>
+                        <a href="services.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Conception Web</a>
+                        <a href="services.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Strategie Digitale</a>
+                        <a href="services.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Branding</a>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <span class="text-sm font-semibold text-white tracking-tight mb-1">Entreprise</span>
+                        <a href="about.html" class="text-sm text-neutral-400 hover:text-white transition-colors">A propos</a>
+                        <a href="projects.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Projets</a>
+                        <a href="contact.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Contact</a>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+                <span class="text-xs text-neutral-500 font-medium">&copy; 2025 RVolution X. Tous droits reserves.</span>
+                <div class="flex gap-4">
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors" aria-label="Twitter">
+                        <iconify-icon icon="mdi:twitter" style="font-size: 1.25rem;"></iconify-icon>
+                    </a>
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors" aria-label="LinkedIn">
+                        <iconify-icon icon="mdi:linkedin" style="font-size: 1.25rem;"></iconify-icon>
+                    </a>
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors" aria-label="Instagram">
+                        <iconify-icon icon="mdi:instagram" style="font-size: 1.25rem;"></iconify-icon>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

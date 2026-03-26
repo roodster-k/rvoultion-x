@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="RVolution X - A propos de notre equipe et notre mission pour transformer le digital.">
+    <title>A propos | RVolution X</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+        }
+    </script>
+</head>
+<body class="bg-neutral-950 text-neutral-300 font-sans antialiased overflow-x-hidden relative bg-dot-pattern">
+
+    <!-- Background Orbs -->
+    <div class="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none"></div>
+    <div class="absolute top-0 -right-4 w-72 h-72 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none" style="animation-delay: 2s;"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-neutral-950/50 border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <a href="index.html" class="text-xl font-bold tracking-tighter text-white">RV<span class="gradient-text">X</span></a>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+                <a href="index.html" class="nav-link hover:text-white transition-colors">Accueil</a>
+                <a href="services.html" class="nav-link hover:text-white transition-colors">Services</a>
+                <a href="projects.html" class="nav-link hover:text-white transition-colors">Projets</a>
+                <a href="about.html" class="nav-link active text-white">A propos</a>
+                <a href="contact.html" class="nav-link hover:text-white transition-colors">Contact</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="contact.html" class="hidden md:inline-flex group relative items-center justify-center px-4 py-1.5 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:border-white/20">
+                    <span class="relative z-10">Commencer</span>
+                    <div class="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                </a>
+                <button id="menu-toggle" class="md:hidden text-white" aria-label="Menu">
+                    <iconify-icon icon="solar:hamburger-menu-linear" style="font-size: 1.5rem;"></iconify-icon>
+                </button>
+            </div>
+        </div>
+        <div id="mobile-menu" class="mobile-menu fixed top-16 right-0 bottom-0 w-64 bg-neutral-950/95 backdrop-blur-xl border-l border-white/10 z-50 p-6 flex flex-col gap-4">
+            <a href="index.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Accueil</a>
+            <a href="services.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Services</a>
+            <a href="projects.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Projets</a>
+            <a href="about.html" class="text-sm font-medium text-white py-2">A propos</a>
+            <a href="contact.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Contact</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="pt-32 pb-16 lg:pt-40 lg:pb-20 relative z-10">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <h1 class="text-4xl md:text-6xl font-bold tracking-tighter text-white mb-6 animate-fade-in-up">A <span class="gradient-text">propos</span></h1>
+            <p class="text-lg text-neutral-400 max-w-2xl mx-auto font-medium animate-fade-in-up" style="animation-delay: 0.2s;">Une equipe passionnee par l'innovation digitale, au service de votre croissance.</p>
+        </div>
+    </section>
+
+    <!-- Mission -->
+    <section class="py-16 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col lg:flex-row gap-16 items-center">
+                <div class="lg:w-1/2 reveal">
+                    <h2 class="text-3xl font-bold tracking-tight text-white mb-6">Notre Mission</h2>
+                    <p class="text-neutral-400 mb-4 leading-relaxed">RVolution X est nee de la conviction que chaque entreprise merite une presence digitale a la hauteur de ses ambitions. Nous combinons expertise technique, creativite et strategie pour transformer vos idees en experiences digitales impactantes.</p>
+                    <p class="text-neutral-400 leading-relaxed">Notre approche est simple : ecouter, comprendre, concevoir et livrer. Pas de solutions generiques, mais des projets sur mesure qui generent des resultats concrets.</p>
+                </div>
+                <div class="lg:w-1/2 w-full reveal">
+                    <div class="glass-card p-8 space-y-6">
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                                <iconify-icon icon="solar:target-linear" style="font-size: 1.25rem;"></iconify-icon>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">Innovation</h3>
+                                <p class="text-sm text-neutral-400">Toujours a la pointe des technologies pour offrir les meilleures solutions.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                                <iconify-icon icon="solar:users-group-two-rounded-linear" style="font-size: 1.25rem;"></iconify-icon>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">Collaboration</h3>
+                                <p class="text-sm text-neutral-400">Votre projet est notre projet. Nous travaillons main dans la main avec vous.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                                <iconify-icon icon="solar:medal-ribbon-star-linear" style="font-size: 1.25rem;"></iconify-icon>
+                            </div>
+                            <div>
+                                <h3 class="text-white font-semibold mb-1">Excellence</h3>
+                                <p class="text-sm text-neutral-400">Chaque detail compte. Nous visons la perfection dans chaque livrable.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team -->
+    <section class="py-24 border-t border-white/5 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">L'equipe</h2>
+                <p class="text-base text-neutral-400 max-w-xl mx-auto font-medium">Des experts passionnes, prets a relever vos defis digitaux.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- Member 1 -->
+                <div class="glass-card p-8 text-center reveal">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-white/10 mx-auto mb-6 flex items-center justify-center">
+                        <iconify-icon icon="solar:user-rounded-linear" class="text-white" style="font-size: 2rem;"></iconify-icon>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-1">Fondateur</h3>
+                    <p class="text-sm text-indigo-400 mb-3">CEO & Lead Developer</p>
+                    <p class="text-sm text-neutral-400">Visionnaire tech avec une passion pour les solutions web innovantes et performantes.</p>
+                </div>
+
+                <!-- Member 2 -->
+                <div class="glass-card p-8 text-center reveal">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500/30 to-blue-500/30 border border-white/10 mx-auto mb-6 flex items-center justify-center">
+                        <iconify-icon icon="solar:user-rounded-linear" class="text-white" style="font-size: 2rem;"></iconify-icon>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-1">Directeur Creatif</h3>
+                    <p class="text-sm text-cyan-400 mb-3">Design & UX</p>
+                    <p class="text-sm text-neutral-400">Expert en design d'interfaces modernes et experiences utilisateur fluides.</p>
+                </div>
+
+                <!-- Member 3 -->
+                <div class="glass-card p-8 text-center reveal">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/30 to-teal-500/30 border border-white/10 mx-auto mb-6 flex items-center justify-center">
+                        <iconify-icon icon="solar:user-rounded-linear" class="text-white" style="font-size: 2rem;"></iconify-icon>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-1">Lead Strategiste</h3>
+                    <p class="text-sm text-emerald-400 mb-3">Marketing & Growth</p>
+                    <p class="text-sm text-neutral-400">Specialiste en croissance digitale et optimisation des performances.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Timeline -->
+    <section class="py-24 border-t border-white/5 relative z-10">
+        <div class="max-w-3xl mx-auto px-6">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl font-bold tracking-tight text-white mb-4">Notre parcours</h2>
+            </div>
+
+            <div class="space-y-8">
+                <div class="flex gap-6 reveal">
+                    <div class="flex flex-col items-center">
+                        <div class="w-3 h-3 rounded-full bg-indigo-500"></div>
+                        <div class="w-0.5 h-full bg-white/10"></div>
+                    </div>
+                    <div class="pb-8">
+                        <span class="text-xs font-medium text-indigo-400">2023</span>
+                        <h3 class="text-lg font-semibold text-white mt-1">Creation de RVolution X</h3>
+                        <p class="text-sm text-neutral-400 mt-1">Lancement de l'agence avec une vision claire : democratiser l'acces aux solutions digitales premium.</p>
+                    </div>
+                </div>
+                <div class="flex gap-6 reveal">
+                    <div class="flex flex-col items-center">
+                        <div class="w-3 h-3 rounded-full bg-cyan-500"></div>
+                        <div class="w-0.5 h-full bg-white/10"></div>
+                    </div>
+                    <div class="pb-8">
+                        <span class="text-xs font-medium text-cyan-400">2024</span>
+                        <h3 class="text-lg font-semibold text-white mt-1">Expansion des services</h3>
+                        <p class="text-sm text-neutral-400 mt-1">Ajout des solutions IA et infrastructure cloud a notre offre. Premiers clients grands comptes.</p>
+                    </div>
+                </div>
+                <div class="flex gap-6 reveal">
+                    <div class="flex flex-col items-center">
+                        <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                    </div>
+                    <div>
+                        <span class="text-xs font-medium text-emerald-400">2025-2026</span>
+                        <h3 class="text-lg font-semibold text-white mt-1">RVX 2.0</h3>
+                        <p class="text-sm text-neutral-400 mt-1">Nouvelle identite, nouvelles ambitions. Plus de 50 projets livres et une equipe en pleine croissance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-neutral-950 pt-16 pb-8">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-start gap-10 mb-16">
+                <div>
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white inline-block mb-4">RV<span class="gradient-text">X</span></a>
+                    <p class="text-sm text-neutral-500 font-medium max-w-xs">Architectes du futur digital.</p>
+                </div>
+                <div class="flex gap-16">
+                    <div class="flex flex-col gap-3">
+                        <span class="text-sm font-semibold text-white tracking-tight mb-1">Navigation</span>
+                        <a href="index.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Accueil</a>
+                        <a href="services.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Services</a>
+                        <a href="projects.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Projets</a>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <span class="text-sm font-semibold text-white tracking-tight mb-1">Entreprise</span>
+                        <a href="about.html" class="text-sm text-neutral-400 hover:text-white transition-colors">A propos</a>
+                        <a href="contact.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Contact</a>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+                <span class="text-xs text-neutral-500 font-medium">&copy; 2026 RVolution X. Tous droits reserves.</span>
+                <div class="flex gap-4">
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="mdi:twitter" style="font-size: 1.25rem;"></iconify-icon></a>
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="mdi:linkedin" style="font-size: 1.25rem;"></iconify-icon></a>
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="mdi:github" style="font-size: 1.25rem;"></iconify-icon></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

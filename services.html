@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="RVolution X - Nos services: developpement web, strategie digitale, solutions IA, infrastructure cloud.">
+    <title>Services | RVolution X</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+        }
+    </script>
+</head>
+<body class="bg-neutral-950 text-neutral-300 font-sans antialiased overflow-x-hidden relative bg-dot-pattern">
+
+    <!-- Background Orbs -->
+    <div class="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none"></div>
+    <div class="absolute top-0 -right-4 w-72 h-72 bg-cyan-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-20 animate-blob pointer-events-none" style="animation-delay: 2s;"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-neutral-950/50 border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <a href="index.html" class="text-xl font-bold tracking-tighter text-white">RV<span class="gradient-text">X</span></a>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+                <a href="index.html" class="nav-link hover:text-white transition-colors">Accueil</a>
+                <a href="services.html" class="nav-link active text-white">Services</a>
+                <a href="projects.html" class="nav-link hover:text-white transition-colors">Projets</a>
+                <a href="about.html" class="nav-link hover:text-white transition-colors">A propos</a>
+                <a href="contact.html" class="nav-link hover:text-white transition-colors">Contact</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="contact.html" class="hidden md:inline-flex group relative items-center justify-center px-4 py-1.5 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-full overflow-hidden transition-all hover:bg-white/10 hover:border-white/20">
+                    <span class="relative z-10">Commencer</span>
+                    <div class="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-500 to-cyan-500 opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+                </a>
+                <button id="menu-toggle" class="md:hidden text-white" aria-label="Menu">
+                    <iconify-icon icon="solar:hamburger-menu-linear" style="font-size: 1.5rem;"></iconify-icon>
+                </button>
+            </div>
+        </div>
+        <div id="mobile-menu" class="mobile-menu fixed top-16 right-0 bottom-0 w-64 bg-neutral-950/95 backdrop-blur-xl border-l border-white/10 z-50 p-6 flex flex-col gap-4">
+            <a href="index.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Accueil</a>
+            <a href="services.html" class="text-sm font-medium text-white py-2">Services</a>
+            <a href="projects.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Projets</a>
+            <a href="about.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">A propos</a>
+            <a href="contact.html" class="text-sm font-medium text-neutral-400 hover:text-white py-2">Contact</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="pt-32 pb-16 lg:pt-40 lg:pb-20 relative z-10">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <h1 class="text-4xl md:text-6xl font-bold tracking-tighter text-white mb-6 animate-fade-in-up">Nos <span class="gradient-text">Services</span></h1>
+            <p class="text-lg text-neutral-400 max-w-2xl mx-auto font-medium animate-fade-in-up" style="animation-delay: 0.2s;">Des solutions digitales completes pour transformer votre vision en realite.</p>
+        </div>
+    </section>
+
+    <!-- Services Detail -->
+    <section class="py-16 relative z-10">
+        <div class="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Service 1 -->
+            <div class="service-card glass-card p-8 reveal">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-6 text-indigo-400 service-icon">
+                    <iconify-icon icon="solar:code-square-linear" style="font-size: 1.75rem;"></iconify-icon>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-3">Developpement Web</h3>
+                <p class="text-sm text-neutral-400 mb-6 leading-relaxed">Sites vitrines, applications web, plateformes e-commerce. Nous concevons des experiences digitales performantes et sur mesure avec les dernieres technologies (React, Next.js, Tailwind, etc.).</p>
+                <ul class="space-y-2 text-sm text-neutral-300">
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-indigo-400"></iconify-icon> Sites vitrine & landing pages</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-indigo-400"></iconify-icon> Applications web (SPA/PWA)</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-indigo-400"></iconify-icon> E-commerce & marketplaces</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-indigo-400"></iconify-icon> Responsive & accessibilite</li>
+                </ul>
+            </div>
+
+            <!-- Service 2 -->
+            <div class="service-card glass-card p-8 reveal">
+                <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-6 text-cyan-400 service-icon">
+                    <iconify-icon icon="solar:chart-2-linear" style="font-size: 1.75rem;"></iconify-icon>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-3">Strategie Digitale</h3>
+                <p class="text-sm text-neutral-400 mb-6 leading-relaxed">Analyse de marche, positionnement SEO, campagnes marketing et optimisation des conversions. Une strategie data-driven pour maximiser votre impact.</p>
+                <ul class="space-y-2 text-sm text-neutral-300">
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-cyan-400"></iconify-icon> Audit SEO & optimisation</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-cyan-400"></iconify-icon> Marketing digital</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-cyan-400"></iconify-icon> Analytics & reporting</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-cyan-400"></iconify-icon> Branding & identite visuelle</li>
+                </ul>
+            </div>
+
+            <!-- Service 3 -->
+            <div class="service-card glass-card p-8 reveal">
+                <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 text-emerald-400 service-icon">
+                    <iconify-icon icon="solar:magic-stick-3-linear" style="font-size: 1.75rem;"></iconify-icon>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-3">Solutions IA</h3>
+                <p class="text-sm text-neutral-400 mb-6 leading-relaxed">Integrez l'intelligence artificielle dans vos processus. Chatbots, automatisation, analyse predictive et recommandations personnalisees.</p>
+                <ul class="space-y-2 text-sm text-neutral-300">
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-emerald-400"></iconify-icon> Chatbots & assistants virtuels</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-emerald-400"></iconify-icon> Automatisation de processus</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-emerald-400"></iconify-icon> Analyse predictive</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-emerald-400"></iconify-icon> Integration API IA</li>
+                </ul>
+            </div>
+
+            <!-- Service 4 -->
+            <div class="service-card glass-card p-8 reveal">
+                <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6 text-purple-400 service-icon">
+                    <iconify-icon icon="solar:cloud-linear" style="font-size: 1.75rem;"></iconify-icon>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-3">Infrastructure Cloud</h3>
+                <p class="text-sm text-neutral-400 mb-6 leading-relaxed">Hebergement securise, pipelines CI/CD, monitoring 24/7 et scalabilite automatique. Votre application, toujours en ligne, toujours rapide.</p>
+                <ul class="space-y-2 text-sm text-neutral-300">
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-purple-400"></iconify-icon> Hebergement haute disponibilite</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-purple-400"></iconify-icon> CI/CD automatise</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-purple-400"></iconify-icon> Monitoring & alerting</li>
+                    <li class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-linear" class="text-purple-400"></iconify-icon> Securite & backups</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Smart FAQ Section -->
+    <section id="smart-faq" class="py-24 border-t border-white/5 relative z-10">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12 reveal">
+                <h2 class="text-3xl md:text-4xl font-bold tracking-tight text-white mb-4">FAQ <span class="gradient-text">Intelligente</span></h2>
+                <p class="text-base text-neutral-400 font-medium max-w-xl mx-auto">Repondez a quelques questions et nous vous recommanderons le service le plus adapte a votre projet.</p>
+            </div>
+
+            <div id="faq-container" class="glass-card p-8 md:p-12 reveal">
+                <!-- Progress bar -->
+                <div class="mb-8">
+                    <div class="flex justify-between text-xs text-neutral-500 mb-2">
+                        <span id="faq-step-label">Question 1 / 4</span>
+                        <span id="faq-percent">0%</span>
+                    </div>
+                    <div class="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
+                        <div id="faq-progress" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Question area -->
+                <div id="faq-question-area">
+                    <h3 id="faq-question" class="text-xl font-semibold text-white mb-6"></h3>
+                    <div id="faq-options" class="space-y-3"></div>
+                </div>
+
+                <!-- Result area (hidden initially) -->
+                <div id="faq-result" class="hidden">
+                    <div class="text-center">
+                        <div id="faq-result-icon" class="w-16 h-16 rounded-2xl mx-auto mb-6 flex items-center justify-center"></div>
+                        <h3 id="faq-result-title" class="text-2xl font-bold text-white mb-3"></h3>
+                        <p id="faq-result-desc" class="text-neutral-400 mb-8 max-w-lg mx-auto"></p>
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                            <a href="contact.html" class="btn-primary">Demander un devis</a>
+                            <button id="faq-restart" class="btn-secondary">
+                                <iconify-icon icon="solar:restart-linear" style="font-size: 1rem;"></iconify-icon>
+                                Recommencer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div id="faq-nav" class="flex justify-between mt-8 pt-6 border-t border-white/5">
+                    <button id="faq-prev" class="text-sm text-neutral-400 hover:text-white transition-colors flex items-center gap-1 disabled:opacity-30" disabled>
+                        <iconify-icon icon="solar:arrow-left-linear"></iconify-icon> Precedent
+                    </button>
+                    <button id="faq-next" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 disabled:opacity-30" disabled>
+                        Suivant <iconify-icon icon="solar:arrow-right-linear"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-neutral-950 pt-16 pb-8">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-start gap-10 mb-16">
+                <div>
+                    <a href="index.html" class="text-2xl font-bold tracking-tighter text-white inline-block mb-4">RV<span class="gradient-text">X</span></a>
+                    <p class="text-sm text-neutral-500 font-medium max-w-xs">Architectes du futur digital.</p>
+                </div>
+                <div class="flex gap-16">
+                    <div class="flex flex-col gap-3">
+                        <span class="text-sm font-semibold text-white tracking-tight mb-1">Navigation</span>
+                        <a href="index.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Accueil</a>
+                        <a href="services.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Services</a>
+                        <a href="projects.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Projets</a>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <span class="text-sm font-semibold text-white tracking-tight mb-1">Entreprise</span>
+                        <a href="about.html" class="text-sm text-neutral-400 hover:text-white transition-colors">A propos</a>
+                        <a href="contact.html" class="text-sm text-neutral-400 hover:text-white transition-colors">Contact</a>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+                <span class="text-xs text-neutral-500 font-medium">&copy; 2026 RVolution X. Tous droits reserves.</span>
+                <div class="flex gap-4">
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="mdi:twitter" style="font-size: 1.25rem;"></iconify-icon></a>
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="mdi:linkedin" style="font-size: 1.25rem;"></iconify-icon></a>
+                    <a href="#" class="text-neutral-500 hover:text-white transition-colors"><iconify-icon icon="mdi:github" style="font-size: 1.25rem;"></iconify-icon></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
