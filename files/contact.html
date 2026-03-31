@@ -30,16 +30,31 @@
     <div class="container">
       <h1 data-i18n="contact.title">Contact et rendez-vous</h1>
       <p data-i18n="contact.subtitle">Remplissez le formulaire et notre equipe vous recontacte rapidement.</p>
-      <form class="contact-form" name="contact" method="POST" data-netlify="true">
-        <input type="hidden" name="form-name" value="contact">
-        <label data-i18n="contact.name">Nom complet</label>
-        <input type="text" name="name" required>
-        <label data-i18n="contact.email">Email</label>
-        <input type="email" name="email" required>
-        <label data-i18n="contact.message">Message</label>
-        <textarea name="message" rows="5" required></textarea>
-        <button class="btn btn-primary" type="submit" data-i18n="contact.send">Envoyer</button>
-      </form>
+      <div class="grid-2">
+        <form class="contact-form" name="contact" method="POST" data-netlify="true">
+          <input type="hidden" name="form-name" value="contact">
+          <label data-i18n="contact.name">Nom complet</label>
+          <input type="text" name="name" required>
+          <label data-i18n="contact.email">Email</label>
+          <input type="email" name="email" required>
+          <label data-i18n="contact.message">Message</label>
+          <textarea name="message" rows="5" required></textarea>
+          <button class="btn btn-primary" type="submit" data-i18n="contact.send">Envoyer</button>
+        </form>
+
+        <div class="card fade-in-up">
+          <h2>Coordonnees</h2>
+          <p><strong>Bruxelles</strong><br>Avenue Louise 284<br>1050 Bruxelles</p>
+          <p><strong>Londres</strong><br>Pratique de chirurgie plastique (clinique privee)</p>
+          <p><strong>Telephone Belgique</strong><br>+32 (0)2 400 34 33</p>
+          <p><strong>Telephone mobile</strong><br>+33 6 11 60 81 88</p>
+          <p><strong>Email</strong><br><a href="mailto:garyfhorn@gmail.com">garyfhorn@gmail.com</a></p>
+          <div class="image-row">
+            <img src="https://images.pexels.com/photos/2182973/pexels-photo-2182973.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Vue de Bruxelles">
+            <img src="https://images.pexels.com/photos/34631/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=600" alt="Vue de Londres">
+          </div>
+        </div>
+      </div>
     </div>
   </main>
 
