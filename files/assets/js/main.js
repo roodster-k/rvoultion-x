@@ -87,12 +87,21 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message })
         });
+        if (!response.ok) {
+          // GitHub Pages doesn't support Netlify functions; show a clear UX message.
+          if (response.status === 404) throw new Error("CHATBOT_UNAVAILABLE");
+          throw new Error(`HTTP_${response.status}`);
+        }
         const data = await response.json();
         chatMessages.lastChild.remove();
         addMessage(data.reply || "Aucune reponse.", "assistant");
       } catch (error) {
         chatMessages.lastChild.remove();
-        addMessage("Erreur de connexion au chatbot.", "assistant");
+        if (String(error && error.message) === "CHATBOT_UNAVAILABLE") {
+          addMessage("Chatbot indisponible sur GitHub Pages. Utilisez Netlify pour activer Deepseek.", "assistant");
+        } else {
+          addMessage("Erreur de connexion au chatbot.", "assistant");
+        }
       }
     });
   }
