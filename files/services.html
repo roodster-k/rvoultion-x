@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="meta.servicesTitle">Services | Dr Horn Gary</title>
+  <meta name="description" content="Les actes et expertises proposes par le Dr Horn Gary.">
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body data-page="services">
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="brand" href="/index.html">Dr Horn Gary</a>
+      <button class="menu-toggle" id="menu-toggle" aria-label="Menu">☰</button>
+      <nav class="nav" id="main-nav">
+        <a href="/index.html" data-i18n="nav.home">Accueil</a>
+        <a href="/about.html" data-i18n="nav.about">A propos</a>
+        <a href="/services.html" data-i18n="nav.services">Services</a>
+        <a href="/contact.html" data-i18n="nav.contact">Contact</a>
+      </nav>
+      <div class="nav-actions">
+        <button id="theme-toggle" class="btn btn-ghost" type="button">Dark</button>
+        <button class="btn btn-ghost lang-btn" data-lang="fr" type="button">FR</button>
+        <button class="btn btn-ghost lang-btn" data-lang="en" type="button">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h1 data-i18n="services.title">Services de chirurgie esthetique</h1>
+      <div class="cards-3">
+        <article class="card"><h3 data-i18n="services.s1Title">Chirurgie mammaire</h3><p data-i18n="services.s1Text">Augmentation, reduction et lifting mammaire.</p></article>
+        <article class="card"><h3 data-i18n="services.s2Title">Chirurgie du visage</h3><p data-i18n="services.s2Text">Rhinoplastie, blepharoplastie, lifting.</p></article>
+        <article class="card"><h3 data-i18n="services.s3Title">Silhouette</h3><p data-i18n="services.s3Text">Liposuccion, abdominoplastie et remodelage.</p></article>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div><h3>Dr Horn Gary</h3><p data-i18n="footer.tagline">Chirurgien plasticien a Bruxelles et Londres.</p></div>
+    </div>
+  </footer>
+
+  <div class="cookie-banner" id="cookie-banner">
+    <p data-i18n="cookies.text">Ce site utilise des cookies pour ameliorer votre experience.</p>
+    <div><button class="btn btn-primary" id="accept-cookies" data-i18n="cookies.accept">Accepter</button><button class="btn btn-ghost" id="reject-cookies" data-i18n="cookies.reject">Refuser</button></div>
+  </div>
+  <button class="chat-toggle" id="chat-toggle" aria-label="Open chat">💬</button>
+  <section class="chatbot" id="chatbot">
+    <header><strong data-i18n="chat.title">Assistant Dr Horn Gary</strong><button id="chat-close" type="button">×</button></header>
+    <div class="chat-messages" id="chat-messages"></div>
+    <form id="chat-form"><input id="chat-input" type="text" placeholder="Votre question..." required><button class="btn btn-primary" type="submit" data-i18n="chat.send">Envoyer</button></form>
+  </section>
+  <script src="/assets/js/main.js" defer></script>
+</body>
+</html>

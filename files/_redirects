@@ -4,6 +4,9 @@
 # www → non-www (or inverse — choose ONE and uncomment)
 # https://www.rvolutionx.be/*  https://rvolutionx.be/:splat  301
 
+# API chatbot Deepseek (Netlify Function)
+/api/deepseek-chat   /.netlify/functions/deepseek-chat   200
+
 # Old Wix URLs → new pages
 /rvolutionx-2              /                     301
 /rvolutionx-2/*            /:splat               301
