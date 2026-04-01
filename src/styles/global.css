@@ -1,0 +1,87 @@
+/* src/styles/global.css */
+:root {
+  /* Colors - primary brand */
+  --color-primary: #0f5f54;
+  --color-primary-light: #e0f0ee;
+  --color-primary-hover: #d0ece8;
+  --color-primary-dark: #0a4038;
+  
+  /* Status Colors */
+  --status-normal-bg: #ecfdf5;
+  --status-normal-text: #10b981;
+  
+  --status-attention-bg: #fffbeb;
+  --status-attention-text: #f59e0b;
+  
+  --status-complication-bg: #fef2f2;
+  --status-complication-text: #ef4444;
+
+  /* Neutrals */
+  --background-main: #f5f8f7;
+  --surface-white: #ffffff;
+  --text-dark: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+
+  /* Typography */
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background-main);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-dark);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Custom Scrollbar for a premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Glassmorphism helpers */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.card-shadow {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
