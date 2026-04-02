@@ -1,104 +1,86 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage() {
+  const { login } = useAuth();
   const [email, setEmail] = useState('kevin.m@clinique.be');
   const [password, setPassword] = useState('postop2026');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Veuillez remplir tous les champs.');
       return;
     }
-    // Simulated auth
-    onLogin({ name: 'Kevin M.', role: 'nurse', email });
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      await login(email, password);
+    } catch (err) {
+      console.error('[Login] Error:', err);
+      if (err.message?.includes('Invalid login')) {
+        setError('Email ou mot de passe incorrect.');
+      } else if (err.message?.includes('Email not confirmed')) {
+        setError('Veuillez confirmer votre email avant de vous connecter.');
+      } else {
+        setError(err.message || 'Erreur de connexion. Veuillez réessayer.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #0f5f54 0%, #0a4038 50%, #083830 100%)',
-      padding: 20
-    }}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f5f54] via-[#0a4038] to-[#083830] p-5">
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        style={{
-          background: 'white',
-          padding: '48px 40px',
-          borderRadius: 28,
-          width: '100%',
-          maxWidth: 420,
-          boxShadow: '0 25px 60px rgba(0,0,0,0.3)'
-        }}
+        className="bg-white px-[40px] py-[48px] rounded-[28px] w-full max-w-[420px] shadow-[0_25px_60px_rgba(0,0,0,0.3)]"
       >
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'linear-gradient(135deg, #0f5f54, #10b981)',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontSize: 24, fontWeight: 800, marginBottom: 16
-          }}>+</div>
-          <h1 style={{
-            fontFamily: "'Playfair Display', serif",
-            color: '#0f5f54',
-            fontSize: 28,
-            marginBottom: 8
-          }}>PostOp Tracker</h1>
-          <p style={{ color: '#64748b', fontSize: 14 }}>Identification sécurisée — Clinique Churchill</p>
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent inline-flex items-center justify-center text-white text-2xl font-extrabold mb-4 shadow-sm">
+            +
+          </div>
+          <h1 className="font-serif text-primary text-[28px] mb-2 font-bold tracking-tight">PostOp Tracker</h1>
+          <p className="text-slate-500 text-sm font-medium">Identification sécurisée — Clinique Churchill</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>Adresse e-mail professionnelle</label>
+            <label className="block text-[13px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Adresse e-mail professionnelle</label>
             <input
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setError(''); }}
               placeholder="nom@clinique.be"
-              style={{
-                width: '100%', padding: '14px 16px', borderRadius: 12,
-                border: '1px solid #e2e8f0', fontSize: 15,
-                fontFamily: "'DM Sans', sans-serif",
-                outline: 'none', transition: 'border 0.2s'
-              }}
-              onFocus={e => e.target.style.borderColor = '#0f5f54'}
-              onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+              disabled={isLoading}
+              className="w-full px-4 py-3.5 rounded-xl border border-border text-[15px] outline-none transition-colors duration-200 focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white disabled:opacity-60"
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#64748b', marginBottom: 6 }}>Mot de passe</label>
-            <div style={{ position: 'relative' }}>
+            <label className="block text-[13px] font-bold text-slate-500 mb-1.5 uppercase tracking-wide">Mot de passe</label>
+            <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 placeholder="••••••••"
-                style={{
-                  width: '100%', padding: '14px 48px 14px 16px', borderRadius: 12,
-                  border: '1px solid #e2e8f0', fontSize: 15,
-                  fontFamily: "'DM Sans', sans-serif",
-                  outline: 'none', transition: 'border 0.2s'
-                }}
-                onFocus={e => e.target.style.borderColor = '#0f5f54'}
-                onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+                disabled={isLoading}
+                className="w-full pl-4 pr-12 py-3.5 rounded-xl border border-border text-[15px] outline-none transition-colors duration-200 focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white disabled:opacity-60"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8'
-                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-slate-400 hover:text-slate-600 transition-colors p-1"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -107,35 +89,29 @@ export default function LoginPage({ onLogin }) {
 
           {error && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              style={{ background: '#fef2f2', color: '#b91c1c', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 500 }}
+              className="bg-red-50 text-red-700 py-2.5 px-3.5 rounded-lg text-[13px] font-bold"
             >{error}</motion.div>
           )}
 
           <button
             type="submit"
-            style={{
-              marginTop: 8,
-              width: '100%', padding: 16,
-              background: '#0f5f54', color: 'white', border: 'none',
-              borderRadius: 14, fontSize: 16, fontWeight: 700,
-              cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-              transition: 'background 0.2s',
-              boxShadow: '0 4px 12px rgba(15,95,84,0.3)'
-            }}
-            onMouseEnter={e => e.target.style.background = '#0a4038'}
-            onMouseLeave={e => e.target.style.background = '#0f5f54'}
+            disabled={isLoading}
+            className="mt-2 w-full py-4 bg-primary hover:bg-primary-dark text-white border-none rounded-xl text-[16px] font-bold cursor-pointer transition-colors duration-200 shadow-button disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Me connecter
+            {isLoading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Connexion en cours...
+              </>
+            ) : (
+              'Me connecter'
+            )}
           </button>
         </form>
 
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 6, marginTop: 24,
-          fontSize: 12, color: '#94a3b8'
-        }}>
+        <div className="flex items-center justify-center gap-1.5 mt-6 text-[12px] text-slate-400 font-semibold tracking-wide">
           <ShieldCheck size={14} />
-          Connexion chiffrée TLS 1.3 · Données HDS
+          Connexion TLS 1.3 · Données HDS · Supabase Auth
         </div>
       </motion.div>
     </div>

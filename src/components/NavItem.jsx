@@ -1,16 +1,11 @@
 export default function NavItem({ icon, label, active, onClick, collapsed }) {
   return (
-    <button onClick={onClick} style={{
-      display: "flex", alignItems: "center", gap: collapsed ? 0 : 12,
-      justifyContent: collapsed ? "center" : "flex-start",
-      width: "100%", padding: collapsed ? "12px 0" : "11px 16px",
-      border: "none", borderRadius: 10, cursor: "pointer",
-      background: active ? "var(--color-primary-light)" : "transparent",
-      color: active ? "var(--color-primary)" : "var(--text-muted)",
-      fontWeight: active ? 700 : 500, fontSize: 14,
-      transition: "all 0.2s",
-    }}>
-      <span style={{ fontSize: 18, width: 24, textAlign: "center", display: "inline-block" }}>
+    <button onClick={onClick} className={`
+      flex items-center w-full border-none rounded-xl cursor-pointer transition-all duration-200 text-sm
+      ${collapsed ? 'gap-0 justify-center py-3 px-0' : 'gap-3 justify-start py-2.5 px-4'}
+      ${active ? 'bg-primary-light text-primary font-bold' : 'bg-transparent text-text-muted font-medium hover:bg-slate-50'}
+    `}>
+      <span className="flex items-center justify-center w-6 text-lg">
         {icon}
       </span>
       {!collapsed && <span>{label}</span>}

@@ -1,15 +1,15 @@
-import { statusConfig } from '../data/mockData';
+import { statusConfig } from '../data/constants';
 
 export default function StatusBadge({ status }) {
-  const c = statusConfig[status] || statusConfig.normal;
+  const config = statusConfig[status];
+  if (!config) return null;
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600,
-      color: c.color, background: c.bg, border: `1px solid ${c.color}22`,
-      letterSpacing: 0.3,
-    }}>
-      <span style={{ fontSize: 10 }}>{c.icon}</span> {c.label}
+    <span className={`badge ${
+      status === 'normal' ? 'bg-status-normal-bg text-status-normal' : 
+      status === 'attention' ? 'bg-status-attention-bg text-status-attention' : 
+      'bg-status-complication-bg text-status-complication'
+    }`}>
+      {config.icon} {config.label}
     </span>
   );
 }

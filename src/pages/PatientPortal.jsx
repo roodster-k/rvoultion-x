@@ -3,27 +3,41 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
+import { usePatientContext } from '../context/PatientContext';
+import { useData } from '../context/DataContext';
 
-export default function PatientPortal({ patients, toggleTask, addPhoto, sendMessage }) {
+export default function PatientPortal() {
   const { token } = useParams();
+  const { patients, loading } = usePatientContext();
+  const { toggleTask, addPhoto, sendMessage } = useData();
+
   const patient = patients.find(p => p.token === token);
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'photos' | 'messages'
+  const [activeTab, setActiveTab] = useState('tasks');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [messageInput, setMessageInput] = useState('');
 
+  // Loading state while Supabase fetches data
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface-main">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+          <Loader2 size={32} className="animate-spin text-primary mx-auto mb-3" />
+          <p className="text-text-muted text-sm font-medium">Chargement de votre dossier…</p>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (!patient) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background-main)' }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          style={{ padding: 40, background: 'white', borderRadius: 20, textAlign: 'center', maxWidth: 400 }}
-          className="card-shadow"
-        >
-          <div style={{ color: 'var(--status-complication-text)', marginBottom: 16 }}>
-             <AlertCircle size={48} style={{ margin: '0 auto' }} />
+      <div className="min-h-screen flex items-center justify-center bg-surface-main p-5">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-10 bg-white rounded-[20px] text-center max-w-[400px] shadow-card w-full">
+          <div className="text-status-complication mb-4 flex justify-center">
+             <AlertCircle size={48} />
           </div>
-          <h2 style={{ fontFamily: 'var(--font-serif)', marginBottom: 8 }}>Lien expiré ou invalide</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Pour des raisons de sécurité, ce lien d'accès a expiré. Veuillez contacter la clinique pour en recevoir un nouveau.</p>
+          <h2 className="font-serif text-[22px] mb-2 font-bold text-text-dark">Lien expiré ou invalide</h2>
+          <p className="text-text-muted text-[14px] font-medium leading-relaxed">Pour des raisons de sécurité, ce lien d'accès a expiré. Veuillez contacter la clinique pour en recevoir un nouveau.</p>
         </motion.div>
       </div>
     );
@@ -45,117 +59,105 @@ export default function PatientPortal({ patients, toggleTask, addPhoto, sendMess
   const progressPct = progressTotal === 0 ? 0 : Math.round((progressDone / progressTotal) * 100);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--background-main)', paddingBottom: 60 }}>
+    <div className="min-h-screen bg-surface-main pb-[60px]">
       {/* Header Mobile / Patient */}
-      <header style={{ background: 'white', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ background: 'linear-gradient(135deg, var(--color-primary), #10b981)', width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>+</div>
-          <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-serif)', fontSize: 18 }}>PostOp</span>
+      <header className="bg-white px-5 py-4 border-b border-border flex justify-between items-center sticky top-0 z-10 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-gradient-to-br from-primary to-accent w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">+</div>
+          <span className="font-extrabold text-primary font-serif text-[18px]">PostOp</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-primary)', background: 'var(--color-primary-light)', padding: '4px 10px', borderRadius: 20, fontWeight: 600 }}>
+        <div className="flex items-center gap-1.5 text-xs text-primary bg-primary-light px-3 py-1.5 rounded-full font-bold shadow-sm">
           <ShieldCheck size={14} /> Données Sécurisées
         </div>
       </header>
 
-      <main style={{ maxWidth: 600, margin: '0 auto', padding: '24px 20px' }}>
-        
+      <main className="max-w-[600px] mx-auto p-5 sm:p-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           {/* Bienvenue */}
-          <div style={{ marginBottom: 24 }}>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 26, color: 'var(--text-dark)', marginBottom: 4 }}>Bonjour {patient.name.split(' ')[0]}</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>Suivi de votre {patient.intervention.toLowerCase()}</p>
+          <div className="mb-6">
+            <h1 className="font-serif text-[26px] text-text-dark mb-1 font-bold">Bonjour {patient.name.split(' ')[0]}</h1>
+            <p className="text-text-muted text-[15px] font-medium tracking-wide">Suivi de votre {patient.intervention.toLowerCase()}</p>
           </div>
 
-          <div style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: 20, padding: 24, marginBottom: 24 }} className="card-shadow">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Progression globale</span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-primary)' }}>{progressPct}%</span>
+          <div className="card p-6 mb-6 shadow-sm">
+            <div className="flex justify-between mb-4">
+              <span className="text-[13px] font-bold text-text-muted uppercase tracking-wide">Progression globale</span>
+              <span className="text-[13px] font-extrabold text-primary">{progressPct}%</span>
             </div>
-            <div style={{ height: 8, background: 'var(--color-primary-light)', borderRadius: 10, overflow: 'hidden' }}>
+            <div className="h-2.5 bg-primary-light rounded-full overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }} animate={{ width: `${progressPct}%` }} transition={{ duration: 1, ease: "easeOut" }}
-                style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-primary), #10b981)', borderRadius: 10 }}
+                className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
               />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
+            <div className="flex justify-between mt-4.5 pt-4.5 border-t border-border">
               <div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Pratiqué par</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dark)', marginTop: 2 }}>{patient.chirurgien}</div>
+                <div className="text-[11px] text-text-muted uppercase tracking-wider font-bold mb-1">Pratiqué par</div>
+                <div className="text-[14px] font-extrabold text-text-dark">{patient.chirurgien}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>Dernier statut</div>
-                <div style={{ marginTop: 2 }}><StatusBadge status={patient.status} /></div>
+              <div className="text-right">
+                <div className="text-[11px] text-text-muted uppercase tracking-wider font-bold mb-1">Dernier statut</div>
+                <StatusBadge status={patient.status} />
               </div>
             </div>
           </div>
 
           {/* Navigation inter-tabs */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-            <button onClick={() => setActiveTab('tasks')} style={{
-              flex: 1, minWidth: '30%', padding: '12px 6px', borderRadius: 14, border: 'none', background: activeTab === 'tasks' ? 'var(--color-primary)' : 'white',
-              color: activeTab === 'tasks' ? 'white' : 'var(--text-muted)', fontWeight: 600, fontSize: 13, transition: 'all 0.2s',
-              boxShadow: activeTab === 'tasks' ? '0 4px 12px rgba(15,95,84,0.3)' : '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4
-            }}><Check size={20} /> Tâches</button>
-            <button onClick={() => setActiveTab('photos')} style={{
-              flex: 1, minWidth: '30%', padding: '12px 6px', borderRadius: 14, border: 'none', background: activeTab === 'photos' ? 'var(--color-primary)' : 'white',
-              color: activeTab === 'photos' ? 'white' : 'var(--text-muted)', fontWeight: 600, fontSize: 13, transition: 'all 0.2s',
-              boxShadow: activeTab === 'photos' ? '0 4px 12px rgba(15,95,84,0.3)' : '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4
-            }}><Camera size={20} /> Photos</button>
-            <button onClick={() => setActiveTab('messages')} style={{
-              flex: 1, minWidth: '30%', padding: '12px 6px', borderRadius: 14, border: 'none', background: activeTab === 'messages' ? 'var(--color-primary)' : 'white',
-              color: activeTab === 'messages' ? 'white' : 'var(--text-muted)', fontWeight: 600, fontSize: 13, transition: 'all 0.2s',
-              boxShadow: activeTab === 'messages' ? '0 4px 12px rgba(15,95,84,0.3)' : '0 1px 3px rgba(0,0,0,0.05)', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative'
-            }}>
-              <MessageCircle size={20} />
-              Messages
-            </button>
+          <div className="flex gap-2 mb-6 flex-wrap">
+            {[
+              { id: 'tasks', icon: <Check size={20} />, label: 'Tâches' },
+              { id: 'photos', icon: <Camera size={20} />, label: 'Photos' },
+              { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages' }
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`
+                flex-1 min-w-[30%] py-3 px-1.5 rounded-[14px] border-none font-bold text-[13px] transition-all cursor-pointer flex flex-col items-center gap-1.5
+                ${activeTab === tab.id ? 'bg-primary text-white shadow-button' : 'bg-white text-text-muted shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:text-text-dark hover:bg-slate-50'}`}>
+                {tab.icon} {tab.label}
+              </button>
+            ))}
           </div>
 
           {activeTab === 'tasks' && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <h3 style={{ fontSize: 16, marginBottom: 16, fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Check size={18} color="var(--color-primary)" /> À faire par vous
+              <h3 className="text-[16px] mb-4 font-bold text-text-dark flex items-center gap-2">
+                <Check size={18} className="text-primary" /> À faire par vous
               </h3>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 30 }}>
+              <div className="flex flex-col gap-2.5 mb-8">
                 {patient.checklist.filter(c => c.patientCanCheck).length === 0 ? (
-                  <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14, background: 'white', borderRadius: 16, border: '1px solid var(--border-color)' }}>Aucune action requise de votre part pour le moment.</div>
+                  <div className="p-5 text-center text-text-muted text-[14px] bg-white rounded-2xl border border-border font-medium shadow-sm">Aucune action requise de votre part pour le moment.</div>
                 ) : patient.checklist.filter(c => c.patientCanCheck).map((c, i) => (
                   <motion.div key={c.id} initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: i * 0.1 }}>
-                    <label style={{
-                      display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', borderRadius: 16,
-                      background: c.done ? 'var(--status-normal-bg)' : 'white',
-                      border: c.done ? '1px solid #d1fae5' : '1px solid var(--border-color)',
-                      cursor: 'pointer', transition: 'all 0.2s'
-                    }} className={!c.done ? 'card-shadow' : ''}>
-                      <input type="checkbox" checked={c.done} onChange={() => toggleTask(patient.id, c.id)} style={{ width: 24, height: 24, accentColor: 'var(--color-primary)', cursor: 'pointer' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 15, color: c.done ? 'var(--color-primary)' : 'var(--text-dark)', textDecoration: c.done ? 'line-through' : 'none', opacity: c.done ? 0.7 : 1 }}>
+                    <label className={`flex items-center gap-3.5 py-4 px-5 rounded-2xl cursor-pointer transition-all border
+                      ${c.done ? 'bg-status-normal-bg border-emerald-200 hover:bg-emerald-100' : 'bg-white border-border shadow-sm hover:border-primary/30'}`}>
+                      <input type="checkbox" checked={c.done} onChange={() => toggleTask(patient.id, c.id)} className="w-[24px] h-[24px] accent-primary cursor-pointer shrink-0 rounded" />
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-bold text-[15px] transition-all
+                          ${c.done ? 'text-primary line-through opacity-70' : 'text-text-dark'}`}>
                           {c.label}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{c.jour}</div>
+                        <div className="text-[12px] text-text-muted mt-0.5 font-semibold tracking-wide">{c.jour}</div>
                       </div>
                     </label>
                   </motion.div>
                 ))}
               </div>
 
-              <h3 style={{ fontSize: 16, marginBottom: 16, fontFamily: 'var(--font-sans)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="text-[16px] mb-4 font-bold text-text-muted flex items-center gap-2">
                 <Info size={18} /> Suivi médical (Votre équipe)
               </h3>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="flex flex-col gap-2">
                 {patient.checklist.filter(c => !c.patientCanCheck).map((c) => (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 12, background: c.done ? '#f8fafc' : 'white', border: '1px solid var(--border-color)', opacity: c.done ? 0.6 : 1 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: c.done ? 'var(--status-normal-text)' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 10 }}>
+                  <div key={c.id} className={`flex items-center gap-3.5 py-3.5 px-4 rounded-[12px] border border-border transition-all
+                    ${c.done ? 'bg-slate-50 opacity-60' : 'bg-white shadow-sm'}`}>
+                    <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-white text-[10px] shrink-0 font-bold
+                      ${c.done ? 'bg-status-normal-text' : 'bg-slate-200'}`}>
                       {c.done && '✓'}
                     </div>
-                    <div style={{ flex: 1, fontWeight: 500, fontSize: 14, color: 'var(--text-dark)', textDecoration: c.done ? 'line-through' : 'none' }}>
+                    <div className={`flex-1 font-semibold text-[14px] ${c.done ? 'line-through text-text-dark' : 'text-text-dark'}`}>
                       {c.label}
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{c.jour}</div>
+                      <div className="text-[11px] text-text-muted mt-0.5 font-medium">{c.jour}</div>
                     </div>
                   </div>
                 ))}
@@ -165,31 +167,33 @@ export default function PatientPortal({ patients, toggleTask, addPhoto, sendMess
 
           {activeTab === 'photos' && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <div style={{ background: 'white', borderRadius: 20, padding: 30, textAlign: 'center', border: '2px dashed var(--color-primary-light)', marginBottom: 24 }}>
-                <div style={{ width: 60, height: 60, background: uploadSuccess ? 'var(--status-normal-bg)' : 'var(--color-primary-light)', color: uploadSuccess ? 'var(--status-normal-text)' : 'var(--color-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', transition: 'all 0.3s' }}>
-                  {isUploading ? <Loader2 size={28} className="lucide-spin" style={{ animation: 'spin 2s linear infinite' }} /> : (uploadSuccess ? <Check size={28} /> : <Camera size={28} />)}
-                  <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+              <div className="bg-white rounded-[20px] p-8 text-center border-2 border-dashed border-primary-light mb-6 shadow-sm">
+                <div className={`w-[60px] h-[60px] rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-300
+                  ${uploadSuccess ? 'bg-status-normal-bg text-status-normal' : 'bg-primary-light text-primary'}`}>
+                  {isUploading ? <Loader2 size={28} className="animate-spin-slow" /> : (uploadSuccess ? <Check size={28} /> : <Camera size={28} />)}
                 </div>
-                <h3 style={{ fontSize: 16, marginBottom: 8, color: 'var(--text-dark)' }}>
+                <h3 className="text-[16px] mb-2 font-bold text-text-dark">
                   {uploadSuccess ? 'Photo envoyée avec succès !' : 'Envoyer une nouvelle photo'}
                 </h3>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>Photographiez la zone concernée pour permettre à votre chirurgien de contrôler l'évolution locale de manière sécurisée.</p>
+                <p className="text-[13px] text-text-muted mb-5 leading-relaxed font-medium">Photographiez la zone concernée pour permettre à votre chirurgien de contrôler l'évolution locale de manière sécurisée.</p>
                 <button 
                   onClick={handleSimulateUpload} disabled={isUploading}
-                  style={{ background: isUploading ? 'var(--text-muted)' : 'var(--color-primary)', color: 'white', border: 'none', padding: '12px 24px', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: isUploading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', width: '100%' }}
+                  className={`w-full py-3 px-6 text-white border-none rounded-xl font-bold text-[14px] transition-all shadow-sm
+                    ${isUploading ? 'bg-slate-400 cursor-not-allowed hidden-shadow' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}
                 >
                   {isUploading ? 'Analyse et chiffrement...' : 'Prendre ou sélectionner une photo'}
                 </button>
               </div>
 
-              <h3 style={{ fontSize: 16, marginBottom: 16, fontFamily: 'var(--font-sans)' }}>Historique des envois</h3>
+              <h3 className="text-[16px] mb-4 font-bold text-text-dark">Historique des envois</h3>
               {patient.photos.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>Aucune photo envoyée.</div>
+                <div className="text-center p-5 text-text-muted font-medium bg-white rounded-xl shadow-sm border border-slate-100">Aucune photo envoyée.</div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                <div className="grid grid-cols-2 gap-3">
                   {patient.photos.map((photo, i) => (
-                    <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ aspectRatio: '3/4', borderRadius: 14, background: `linear-gradient(135deg, var(--color-primary-light), var(--color-primary-hover))`, position: 'relative', overflow: 'hidden' }}>
-                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.7))', padding: '30px 12px 10px', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
+                    <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} 
+                      className="aspect-[3/4] rounded-[14px] bg-gradient-to-br from-primary-light to-primary-hover relative overflow-hidden shadow-sm border border-primary/20">
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent pt-8 pb-2.5 px-3 text-white text-[12px] font-bold text-center">
                         {photo.label}
                       </div>
                     </motion.div>
@@ -200,24 +204,27 @@ export default function PatientPortal({ patients, toggleTask, addPhoto, sendMess
           )}
 
           {activeTab === 'messages' && (
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} style={{ display: 'flex', flexDirection: 'column', height: '60vh' }}>
-              <div style={{ flex: 1, overflowY: 'auto', background: '#f8fafc', padding: '20px', borderRadius: 20, marginBottom: 16, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ alignSelf: 'center', background: 'var(--color-primary-light)', color: 'var(--color-primary-dark)', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, marginBottom: 10 }}>Début de la conversation sécurisée (HDS)</div>
-                {patient.messages.length === 0 ? <p style={{textAlign:'center', color:'var(--text-muted)'}}>Aucun message. Vous pouvez poser une question à l'équipe médicale ci-dessous.</p> :
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col h-[60vh] max-h-[600px]">
+              <div className="flex-1 overflow-y-auto bg-slate-50 p-5 rounded-[20px] mb-4 border border-border flex flex-col gap-3 shadow-inner">
+                <div className="self-center bg-primary-light text-primary-dark py-1.5 px-3 rounded-full text-[11px] font-bold mb-2 shadow-sm">
+                  Début de la conversation sécurisée (HDS)
+                </div>
+                {patient.messages.length === 0 ? <p className="text-center text-text-muted font-medium mt-4">Aucun message. Vous pouvez poser une question à l'équipe médicale ci-dessous.</p> :
                   patient.messages.map((m, i) => (
-                    <div key={i} style={{ alignSelf: m.from === 'patient' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                      <div style={{ background: m.from === 'patient' ? 'var(--color-primary)' : 'white', color: m.from === 'patient' ? 'white' : 'var(--text-dark)', padding: '12px 16px', borderRadius: 18, borderBottomRightRadius: m.from === 'patient' ? 4 : 18, borderBottomLeftRadius: m.from === 'patient' ? 18 : 4, boxShadow: '0 2px 5px rgba(0,0,0,0.05)', border: m.from === 'nurse' && '1px solid #e2e8f0', fontSize: 14, lineHeight: 1.4 }}>
+                    <div key={i} className={`max-w-[80%] ${m.from === 'patient' ? 'self-end' : 'self-start'}`}>
+                      <div className={`py-3 px-4 rounded-[18px] shadow-sm text-[14px] leading-relaxed font-medium
+                        ${m.from === 'patient' ? 'bg-primary text-white rounded-br-sm' : 'bg-white text-text-dark border border-slate-200 rounded-bl-sm'}`}>
                         {m.text}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, textAlign: m.from === 'patient' ? 'right' : 'left' }}>
+                      <div className={`text-[11px] text-text-muted mt-1 font-semibold ${m.from === 'patient' ? 'text-right' : 'text-left'}`}>
                         {new Date(m.timestamp).toLocaleTimeString('fr-BE', {hour: '2-digit', minute:'2-digit', timeZone: 'Europe/Brussels'})}
                       </div>
                     </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', gap: 10, background: 'white', padding: 10, borderRadius: 20, border: '1px solid var(--border-color)', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-                <input type="text" value={messageInput} onChange={e=>setMessageInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter' && messageInput.trim()){sendMessage(patient.id, messageInput, 'patient'); setMessageInput('');}}} placeholder="Votre message..." style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: 'none', fontSize: 15, background: 'transparent', outline: 'none' }} />
-                <button onClick={()=>{if(messageInput.trim()){sendMessage(patient.id, messageInput, 'patient'); setMessageInput('');}}} style={{ background: 'var(--color-primary)', color: 'white', border: 'none', width: 44, height: 44, borderRadius: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="flex gap-2.5 bg-white p-2.5 rounded-[20px] border border-border shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
+                <input type="text" value={messageInput} onChange={e=>setMessageInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter' && messageInput.trim()){sendMessage(patient.id, messageInput, 'patient'); setMessageInput('');}}} placeholder="Votre message..." className="flex-1 py-2.5 px-3.5 rounded-xl border-none text-[15px] bg-transparent outline-none font-medium" />
+                <button onClick={()=>{if(messageInput.trim()){sendMessage(patient.id, messageInput, 'patient'); setMessageInput('');}}} className="bg-primary hover:bg-primary-dark text-white border-none w-11 h-11 rounded-xl cursor-pointer flex items-center justify-center transition-colors shadow-sm shrink-0">
                   <Send size={18} />
                 </button>
               </div>
@@ -228,7 +235,7 @@ export default function PatientPortal({ patients, toggleTask, addPhoto, sendMess
       </main>
       
       {/* Simulation Banner */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#0a4038', color: 'rgba(255,255,255,0.8)', fontSize: 11, padding: '6px', textAlign: 'center', zIndex: 100 }}>
+      <div className="fixed bottom-0 left-0 right-0 bg-[#0a4038] text-white/80 text-[11px] font-bold tracking-wide p-1.5 text-center z-[100] shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
         Vue Patient • SSL/TLS Actif • {new Date().toLocaleDateString('fr-BE', { timeZone: 'Europe/Brussels' })}
       </div>
     </div>
