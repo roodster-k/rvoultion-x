@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('kevin.m@clinique.be');
-  const [password, setPassword] = useState('postop2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,12 +47,15 @@ export default function LoginPage() {
         className="bg-white px-[40px] py-[48px] rounded-[28px] w-full max-w-[420px] shadow-[0_25px_60px_rgba(0,0,0,0.3)]"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
+          <Link to="/" className="absolute -top-12 -left-6 text-slate-400 hover:text-primary transition-colors flex items-center gap-1 text-[10px] font-black uppercase tracking-widest p-2">
+            <ArrowLeft size={14} /> Accueil
+          </Link>
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent inline-flex items-center justify-center text-white text-2xl font-extrabold mb-4 shadow-sm">
             +
           </div>
           <h1 className="font-serif text-primary text-[28px] mb-2 font-bold tracking-tight">PostOp Tracker</h1>
-          <p className="text-slate-500 text-sm font-medium">Identification sécurisée — Clinique Churchill</p>
+          <p className="text-slate-500 text-sm font-medium italic">Accès sécurisé pour les établissements de santé</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -109,9 +113,16 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="flex items-center justify-center gap-1.5 mt-6 text-[12px] text-slate-400 font-semibold tracking-wide">
+        <div className="mt-8 pt-6 border-t border-slate-100 text-center uppercase tracking-widest">
+            <p className="text-[10px] text-slate-400 font-black mb-3">Nouvel établissement ?</p>
+            <Link to="/signup" className="text-primary hover:text-primary-dark font-black text-[12px]">
+                Créer un compte clinique
+            </Link>
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 mt-8 text-[11px] text-slate-400 font-semibold tracking-widest uppercase">
           <ShieldCheck size={14} />
-          Connexion TLS 1.3 · Données HDS · Supabase Auth
+          Données HDS · Supabase Auth · TLS 1.3
         </div>
       </motion.div>
     </div>
