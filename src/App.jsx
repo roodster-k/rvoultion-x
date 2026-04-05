@@ -2,7 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import NurseDashboard from './pages/NurseDashboard.jsx';
 import PatientPortal from './pages/PatientPortal.jsx';
+import PatientPortalAuth from './pages/PatientPortalAuth.jsx';
+import PatientActivation from './pages/PatientActivation.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import SignupClinic from './pages/SignupClinic.jsx';
 import { useAuth } from './context/AuthContext';
 
 function LoadingScreen() {
@@ -19,7 +22,7 @@ function LoadingScreen() {
 }
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, isStaff, isPatient, loading } = useAuth();
 
   // Show loading screen while Supabase restores session
   if (loading) return <LoadingScreen />;
@@ -27,16 +30,35 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* L'application Patient est toujours accessible (via token) */}
+        {/* ─── Patient routes (always accessible) ─── */}
+        {/* Legacy: accès par token URL (compat mock data) */}
         <Route path="/patient/:token" element={<PatientPortal />} />
 
-        {/* Côté Infirmier : Redirection via Auth */}
+        {/* Auth: activation du compte patient via magic link */}
+        <Route path="/patient/activate" element={<PatientActivation />} />
+
+        {/* Auth: portail patient sécurisé */}
+        <Route path="/patient/portal" element={<PatientPortalAuth />} />
+
+        {/* ─── Staff routes (auth required) ─── */}
         {!user ? (
-          <Route path="*" element={<LoginPage />} />
+          <>
+            <Route path="/signup" element={<SignupClinic />} />
+            <Route path="*" element={<LoginPage />} />
+          </>
+        ) : isPatient ? (
+          // Un patient authentifié qui arrive sur / est redirigé vers son portail
+          <>
+            <Route path="/" element={<Navigate to="/patient/portal" replace />} />
+            <Route path="*" element={<Navigate to="/patient/portal" replace />} />
+          </>
         ) : (
+          // Soignant authentifié → dashboard
           <>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard/*" element={<NurseDashboard />} />
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </>
         )}
       </Routes>

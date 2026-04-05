@@ -9,10 +9,10 @@ export default {
       colors: {
         // Brand
         primary: {
-          DEFAULT: '#0f5f54',
-          light: '#e0f0ee',
-          hover: '#d0ece8',
-          dark: '#0a4038',
+          DEFAULT: 'var(--primary, #0f5f54)',
+          light: 'var(--primary-light, #e0f0ee)',
+          hover: 'var(--primary-hover, #d0ece8)',
+          dark: 'var(--primary-dark, #0a4038)',
         },
         accent: '#10b981',
         // Status

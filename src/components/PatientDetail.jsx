@@ -72,6 +72,21 @@ export default function PatientDetail({ currentPatient, onBack }) {
             <div className="text-[11px] text-primary font-bold uppercase tracking-wide mb-1">Jour Post-Op</div>
             <div className="text-3xl font-extrabold text-primary-dark">J+{currentPatient.jourPostOp}</div>
           </div>
+          
+          {currentPatient.painScores && currentPatient.painScores.length > 0 && (() => {
+            const latestPain = currentPatient.painScores[currentPatient.painScores.length - 1];
+            const isHigh = latestPain.score >= 6;
+            return (
+              <div className={`p-4 rounded-xl border min-w-[130px] ${isHigh ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-border'}`}>
+                <div className={`text-[11px] font-bold uppercase tracking-wide mb-1 ${isHigh ? 'text-red-700' : 'text-text-muted'}`}>Dernière Douleur</div>
+                <div className={`text-3xl font-extrabold ${isHigh ? 'text-red-600' : 'text-text-dark'}`}>
+                  {latestPain.score}<span className="text-lg opacity-50">/10</span>
+                </div>
+                <div className={`text-[11px] font-semibold mt-1 ${isHigh ? 'text-red-600/70' : 'text-text-muted'}`}>Saisie J+{latestPain.jour}</div>
+              </div>
+            );
+          })()}
+
           <div className="flex-1 min-w-[250px] bg-slate-50 p-4 rounded-xl border border-border">
             <div className="text-[11px] text-text-muted font-bold uppercase tracking-wide mb-2">Notes cliniques</div>
             <div className="text-sm text-text-dark leading-relaxed bg-white p-3 rounded-lg border border-border mb-2.5 shadow-sm font-medium">"{currentPatient.notes}"</div>

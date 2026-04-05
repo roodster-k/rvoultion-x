@@ -8,8 +8,12 @@ import { useData } from '../context/DataContext';
 export default function AddPatientModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const { addPatient } = useData();
+  
+  // Set default date to today for convenience
+  const todayStr = new Date().toISOString().split('T')[0];
+  
   const [newPatientForm, setNewPatientForm] = useState({
-    name: '', intervention: '', chirurgien: '', email: '',
+    name: '', intervention: '', chirurgien: '', surgeryDate: todayStr, email: '',
     phoneCode: '+32', phoneNumber: '', whatsapp: ''
   });
 
@@ -17,14 +21,14 @@ export default function AddPatientModal({ isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (newPatientForm.name && newPatientForm.intervention) {
+    if (newPatientForm.name && newPatientForm.intervention && newPatientForm.surgeryDate) {
       const phone = `${newPatientForm.phoneCode} ${newPatientForm.phoneNumber}`;
       addPatient({
         ...newPatientForm,
         phone,
         whatsapp: newPatientForm.whatsapp || phone.replace(/\s/g, ''),
       }, user?.name);
-      setNewPatientForm({ name: '', intervention: '', chirurgien: '', email: '', phoneCode: '+32', phoneNumber: '', whatsapp: '' });
+      setNewPatientForm({ name: '', intervention: '', chirurgien: '', surgeryDate: todayStr, email: '', phoneCode: '+32', phoneNumber: '', whatsapp: '' });
       onClose();
     }
   };
@@ -58,10 +62,17 @@ export default function AddPatientModal({ isOpen, onClose }) {
               <input required list="intervention-list" value={newPatientForm.intervention} onChange={e=>setNewPatientForm({...newPatientForm, intervention: e.target.value})} type="text" placeholder="Ex: Rhinoplastie, Blépharoplastie" className="input" />
               <datalist id="intervention-list">{interventionLabels.map(l=><option key={l} value={l} />)}</datalist>
             </div>
-            <div>
-              <label className="label">Chirurgien</label>
-              <input list="chirurgien-list" value={newPatientForm.chirurgien} onChange={e=>setNewPatientForm({...newPatientForm, chirurgien: e.target.value})} type="text" placeholder="Ex: Dr. Renaud" className="input" />
-              <datalist id="chirurgien-list">{chirurgienLabels.map(l=><option key={l} value={l} />)}</datalist>
+            
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="label">Chirurgien</label>
+                <input list="chirurgien-list" value={newPatientForm.chirurgien} onChange={e=>setNewPatientForm({...newPatientForm, chirurgien: e.target.value})} type="text" placeholder="Ex: Dr. Renaud" className="input w-full" />
+                <datalist id="chirurgien-list">{chirurgienLabels.map(l=><option key={l} value={l} />)}</datalist>
+              </div>
+              <div className="flex-1">
+                <label className="label">Date d'opération *</label>
+                <input required type="date" value={newPatientForm.surgeryDate} onChange={e=>setNewPatientForm({...newPatientForm, surgeryDate: e.target.value})} className="input w-full" />
+              </div>
             </div>
             
             <hr className="border-t border-border my-2" />

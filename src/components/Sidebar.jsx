@@ -1,5 +1,5 @@
 import NavItem from './NavItem';
-import { LayoutDashboard, Users, Bell, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Bell, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAlertContext } from '../context/AlertContext';
 
@@ -7,20 +7,28 @@ export default function Sidebar({
   activeView, setActiveView, currentPatient,
   setSelectedPatientId, setSidebarOpen
 }) {
-  const { user, logout } = useAuth();
+  const { user, profile, clinicSettings, logout } = useAuth();
   const { alerts } = useAlertContext();
+
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'clinic_admin';
 
   return (
     <div className="sidebar">
-      <div className="mb-8 px-2">
-        <div className="text-[22px] font-black font-serif text-primary flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-lg shadow-sm">
+      <div className="mb-8 px-2 flex items-center gap-3">
+        {clinicSettings?.logo_url ? (
+          <img src={clinicSettings.logo_url} alt="Logo" className="w-10 h-10 object-contain rounded-xl" />
+        ) : (
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex flex-shrink-0 items-center justify-center text-white text-lg shadow-sm font-serif">
             +
           </div>
-          PostOp
-        </div>
-        <div className="text-[11px] text-text-muted mt-1 ml-[46px] font-semibold tracking-wide uppercase">
-          Clinique Churchill
+        )}
+        <div className="overflow-hidden">
+          <div className="text-[20px] font-black font-serif text-primary truncate leading-none mb-1">
+            PostOp
+          </div>
+          <div className="text-[11px] text-text-muted font-semibold tracking-wide uppercase truncate leading-none">
+            {clinicSettings?.name || 'Ma Clinique'}
+          </div>
         </div>
       </div>
 
@@ -40,17 +48,27 @@ export default function Sidebar({
             </div>
           )}
         </div>
+
+        {isAdmin && (
+          <NavItem icon={<Settings size={20} />} label="Paramètres Clinique" active={activeView === 'settings'} onClick={() => {
+            setSelectedPatientId(null);
+            setActiveView('settings');
+            setSidebarOpen(false);
+          }} />
+        )}
       </div>
 
-      <div className="p-4 rounded-2xl bg-primary-light border border-primary-hover flex items-center gap-3 transition-colors hover:bg-primary-hover">
-        <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+      <div className="p-4 rounded-2xl bg-primary-light border border-primary-hover flex items-center gap-3 transition-colors hover:bg-primary-hover mt-4">
+        <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
           {(user?.name || 'K').split(' ').map(n => n[0]).join('')}
         </div>
-        <div className="flex-1">
-          <div className="font-bold text-[13px] text-primary-dark">{user?.name || "Infirmière"}</div>
-          <div className="text-[11px] text-primary/80 font-medium">Infirmier(e) Coord.</div>
+        <div className="flex-1 overflow-hidden">
+          <div className="font-bold text-[13px] text-primary-dark truncate">{user?.name || "Soignant"}</div>
+          <div className="text-[11px] text-primary/80 font-medium truncate">
+            {profile?.role === 'clinic_admin' ? 'Admin' : profile?.role === 'surgeon' ? 'Chirurgien' : 'Infirmier(e)'}
+          </div>
         </div>
-        <LogOut size={16} className="text-primary cursor-pointer hover:text-primary-dark transition-colors" onClick={logout} title="Déconnexion" />
+        <LogOut size={18} className="text-primary cursor-pointer hover:text-primary-dark transition-colors flex-shrink-0 ml-1" onClick={logout} title="Déconnexion" />
       </div>
     </div>
   );
