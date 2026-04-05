@@ -107,15 +107,21 @@ export function AuthProvider({ children }) {
     let mounted = true;
 
     // 1. Check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!mounted) return;
-
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user);
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted && session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user);
+        }
+      } catch (error) {
+        console.error('[Auth] Initial session fetch error:', error);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+
+    getInitialSession();
 
     // 2. Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

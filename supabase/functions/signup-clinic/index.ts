@@ -74,7 +74,11 @@ Deno.serve(async (req) => {
       // Rollback Auth user manually if clinic fails
       await adminClient.auth.admin.deleteUser(authUid);
       console.error('[signup-clinic] Clinic insert error:', clinicError);
-      return new Response(JSON.stringify({ error: 'Erreur lors de la création de la clinique en BDD.' }), { 
+      return new Response(JSON.stringify({ 
+        error: 'Erreur lors de la création de la clinique en BDD.',
+        details: clinicError.message,
+        hint: clinicError.hint
+      }), { 
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }

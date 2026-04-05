@@ -51,7 +51,7 @@ CREATE TYPE photo_uploader AS ENUM (
 -- 2. TABLE : clinics (tenants)
 -- ────────────────────────────────────────────
 CREATE TABLE clinics (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name          text NOT NULL,
   slug          text NOT NULL UNIQUE,
   logo_url      text,
@@ -69,7 +69,7 @@ COMMENT ON TABLE clinics IS 'Tenant principal — chaque clinique est un espace 
 -- 3. TABLE : users (soignants & admins)
 -- ────────────────────────────────────────────
 CREATE TABLE users (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_user_id  uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   clinic_id     uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   full_name     text NOT NULL,
@@ -92,7 +92,7 @@ COMMENT ON TABLE users IS 'Soignants et administrateurs — liés à auth.users 
 -- 4. TABLE : patients
 -- ────────────────────────────────────────────
 CREATE TABLE patients (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_user_id  uuid UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
   clinic_id     uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   assigned_to   uuid REFERENCES users(id) ON DELETE SET NULL,
@@ -105,7 +105,7 @@ CREATE TABLE patients (
   surgery_date  date NOT NULL,
   status        patient_status DEFAULT 'normal',
   notes         text DEFAULT '',
-  token         text UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  token         text UNIQUE DEFAULT gen_random_uuid()::text,
   invited_at    timestamptz,
   activated_at  timestamptz,
   created_at    timestamptz DEFAULT now(),
@@ -124,7 +124,7 @@ COMMENT ON TABLE patients IS 'Dossiers patients — auth_user_id lié au compte 
 -- 5. TABLE : protocol_templates
 -- ────────────────────────────────────────────
 CREATE TABLE protocol_templates (
-  id                uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id         uuid REFERENCES clinics(id) ON DELETE CASCADE,
   intervention_type text NOT NULL,
   name              text NOT NULL,
@@ -144,7 +144,7 @@ COMMENT ON TABLE protocol_templates IS 'Templates de protocole par type d''inter
 -- 6. TABLE : tasks (instances par patient)
 -- ────────────────────────────────────────────
 CREATE TABLE tasks (
-  id                uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id        uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   clinic_id         uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   template_id       uuid REFERENCES protocol_templates(id) ON DELETE SET NULL,
@@ -172,7 +172,7 @@ COMMENT ON TABLE tasks IS 'Instances de tâches protocole par patient';
 -- 7. TABLE : messages
 -- ────────────────────────────────────────────
 CREATE TABLE messages (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id    uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   clinic_id     uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   sender_type   sender_type NOT NULL,
@@ -193,7 +193,7 @@ COMMENT ON TABLE messages IS 'Messagerie bidirectionnelle patient ↔ soignant';
 -- 8. TABLE : photos
 -- ────────────────────────────────────────────
 CREATE TABLE photos (
-  id             uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id     uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   clinic_id      uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   storage_path   text NOT NULL,
@@ -216,7 +216,7 @@ COMMENT ON TABLE photos IS 'Photos de suivi post-opératoire stockées sur Supab
 -- 9. TABLE : alerts
 -- ────────────────────────────────────────────
 CREATE TABLE alerts (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   clinic_id     uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   patient_id    uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   type          alert_type NOT NULL,
@@ -239,7 +239,7 @@ COMMENT ON TABLE alerts IS 'Alertes pour les soignants';
 -- 10. TABLE : pain_scores
 -- ────────────────────────────────────────────
 CREATE TABLE pain_scores (
-  id            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id    uuid NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   clinic_id     uuid NOT NULL REFERENCES clinics(id) ON DELETE CASCADE,
   score         int NOT NULL CHECK (score >= 0 AND score <= 10),
