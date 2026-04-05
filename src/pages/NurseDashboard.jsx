@@ -103,7 +103,32 @@ export default function NurseDashboard() {
             </header>
 
             <StatsCards stats={STATS} onSelectPatient={handleSelectPatient} />
-            <PatientList patients={filteredPatients} searchTerm={searchTerm} onSelectPatient={handleSelectPatient} onAddPatient={() => setIsAddPatientOpen(true)} viewMode={viewMode} />
+            
+            {filteredPatients.length === 0 && !searchTerm ? (
+              <div className="mt-12 text-center p-12 bg-white rounded-[40px] border-2 border-dashed border-slate-100 max-w-2xl mx-auto">
+                <div className="w-20 h-20 bg-primary/5 text-primary rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Search size={40} className="opacity-20" />
+                </div>
+                <h3 className="text-2xl font-serif font-black text-text-dark mb-4">Bienvenue dans votre espace clinique</h3>
+                <p className="text-text-muted mb-8 leading-relaxed">
+                  Votre espace est prêt ! Commencez par ajouter votre premier patient pour activer le suivi post-opératoire intelligent.
+                </p>
+                <button 
+                  onClick={() => setIsAddPatientOpen(true)}
+                  className="px-8 py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold flex items-center justify-center gap-2 mx-auto shadow-button transition-all"
+                >
+                  + Ajouter un patient
+                </button>
+              </div>
+            ) : (
+              <PatientList 
+                patients={filteredPatients} 
+                searchTerm={searchTerm} 
+                onSelectPatient={handleSelectPatient} 
+                onAddPatient={() => setIsAddPatientOpen(true)} 
+                viewMode={viewMode} 
+              />
+            )}
           </motion.div>
         ) : (
           /* PATIENT DETAIL VIEW */

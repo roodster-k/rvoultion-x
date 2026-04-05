@@ -103,25 +103,33 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ─── Initialize: restore session + listen for changes ───
+  const [supabaseHealth, setSupabaseHealth] = useState('checking'); // 'checking', 'ok', 'error'
+
   useEffect(() => {
     let mounted = true;
 
-    // 1. Check existing session
-    const getInitialSession = async () => {
+    // 0. Check Supabase Health
+    const checkHealth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted && session?.user) {
-          setUser(session.user);
-          await fetchProfile(session.user);
+        const { error } = await supabase.from('clinics').select('count').limit(1);
+        if (error && error.code === 'PGRST301') {
+           // This is fine (no JWT), but if it's a connection error it's bad
+           setSupabaseHealth('ok');
+        } else if (error) {
+           console.error('[Supabase] Health check failed:', error);
+           setSupabaseHealth('error');
+        } else {
+           setSupabaseHealth('ok');
         }
-      } catch (error) {
-        console.error('[Auth] Initial session fetch error:', error);
-      } finally {
-        if (mounted) setLoading(false);
+      } catch (e) {
+        setSupabaseHealth('error');
       }
     };
 
-    getInitialSession();
+    checkHealth();
+
+    // 1. Check existing session
+// ... [rest of the file]
 
     // 2. Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
