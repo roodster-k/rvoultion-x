@@ -44,8 +44,22 @@ export default function SignupClinic() {
          throw new Error(fullError);
       }
 
-      setSuccess(true);
-      setStep(3);
+      // --- AUTO LOGIN ---
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (signInError) {
+        console.error('Auto-login failed:', signInError);
+        // On ne bloque pas tout, on montre juste le succès et ils devront se connecter manuellement
+        setStep(3);
+        setSuccess(true);
+      } else {
+        // Succès total : La redirection sera gérée par AuthContext + App.jsx
+        setSuccess(true);
+        setStep(3);
+      }
     } catch (err) {
       console.error('Signup error:', err);
       setError(err.message || 'Une erreur est survenue lors de l\'inscription de votre clinique. Les fonctions Edge ne sont peut-être pas déployées.');
@@ -182,15 +196,17 @@ export default function SignupClinic() {
               <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 size={40} />
               </div>
-              <h2 className="text-2xl font-black text-text-dark font-serif mb-3">Félicitations !</h2>
+              <h2 className="text-2xl font-black text-text-dark font-serif mb-3">Clinique créée !</h2>
               <p className="text-text-muted mb-8 leading-relaxed">
-                L'espace de votre clinique a été créé avec succès. Vous pouvez maintenant vous connecter en tant qu'administrateur et configurer vos chirurgiens et protocoles.
+                Félicitations, l'espace de votre clinique est prêt. 
+                <br/><strong>Redirection automatique vers votre tableau de bord...</strong>
               </p>
-              <Link to="/">
-                <button className="w-full bg-primary hover:bg-primary-dark text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-2 shadow-button transition-all">
-                  Accéder au Tableau de Bord
-                </button>
-              </Link>
+              <div className="flex flex-col gap-3">
+                <Link to="/login" className="w-full bg-primary hover:bg-primary-dark text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-2 shadow-button transition-all">
+                  Continuer vers le Dashboard
+                </Link>
+                <p className="text-[11px] text-text-muted">Si la redirection ne fonctionne pas, cliquez sur le bouton ci-dessus.</p>
+              </div>
             </motion.div>
           )}
           
