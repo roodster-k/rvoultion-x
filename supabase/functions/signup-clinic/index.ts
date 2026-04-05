@@ -7,19 +7,27 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Helper CORS Headers since Edge Functions require them explicitly
+// Helper CORS Headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // 1. Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('[Edge Function] Missing Supabase environment variables on server.');
+    }
+
     const { clinic_name, admin_name, email, password } = await req.json();
 
     if (!clinic_name || !email || !password || !admin_name) {
@@ -28,36 +36,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 1. Initialise le client admin avec le Service Role de Supabase (Bypass RLS)
-    const adminClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    // 2. Initialise le client admin avec le Service Role (Bypass RLS)
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
-    // 2. Création de l'utilisateur Supabase Auth
-    // NOTE: email_confirm: true outrepasse la confirmation par email (bien pour une démo/MVP)
+    console.log(`[signup-clinic] Processing signup for ${email} / Clinic: ${clinic_name}`);
+
+    // 3. Création de l'utilisateur Supabase Auth
     const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
-      email_confirm: true
+      email_confirm: true,
+      user_metadata: { full_name: admin_name }
     });
 
     if (authError) {
-      // Possible "User already registered" error
-      return new Response(JSON.stringify({ error: authError.message }), { 
+      console.error('[signup-clinic] Auth error:', authError.message);
+      return new Response(JSON.stringify({ error: `Erreur d'authentification : ${authError.message}` }), { 
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
     const authUid = authUser.user.id;
 
-    // 3. Insertion du tenant dans 'clinics'
-    const slug = clinic_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    
-    // Pour s'assurer de l'unicité du slug très basiquement:
-    const randomSuffix = Math.floor(Math.random() * 1000).toString();
-    const finalSlug = `${slug}-${randomSuffix}`;
+    // 4. Insertion du tenant dans 'clinics'
+    const slug = clinic_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'clinique';
+    const finalSlug = `${slug}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const { data: clinicInsert, error: clinicError } = await adminClient
       .from('clinics')
@@ -71,13 +76,13 @@ Deno.serve(async (req) => {
       .single();
 
     if (clinicError) {
-      // Rollback Auth user manually if clinic fails
+      // Rollback Auth user
       await adminClient.auth.admin.deleteUser(authUid);
-      console.error('[signup-clinic] Clinic insert error:', clinicError);
+      console.error('[signup-clinic] Database clinic error:', clinicError.message, clinicError.details);
       return new Response(JSON.stringify({ 
-        error: 'Erreur lors de la création de la clinique en BDD.',
+        error: 'Échec de création de la clinique en base de données.', 
         details: clinicError.message,
-        hint: clinicError.hint
+        hint: clinicError.hint 
       }), { 
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
@@ -85,7 +90,7 @@ Deno.serve(async (req) => {
 
     const clinicId = clinicInsert.id;
 
-    // 4. Insertion de l'utilisateur soignant Admin dans 'users'
+    // 5. Insertion de l'utilisateur soignant Admin dans 'users'
     const { error: userProfileError } = await adminClient
       .from('users')
       .insert({
@@ -101,36 +106,39 @@ Deno.serve(async (req) => {
       await adminClient.from('clinics').delete().eq('id', clinicId);
       await adminClient.auth.admin.deleteUser(authUid);
       
-      console.error('[signup-clinic] Admin user profile insert error:', userProfileError);
-      return new Response(JSON.stringify({ error: 'Erreur lors de la création du profil administrateur.' }), { 
+      console.error('[signup-clinic] Database profile error:', userProfileError.message);
+      return new Response(JSON.stringify({ 
+        error: 'Échec de création du profil administrateur.',
+        details: userProfileError.message 
+      }), { 
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
-    // 5. Seeding the standard protocol templates for this new clinic (optional but great!)
-    // For MVP we can just duplicate the global templates or just insert basic ones.
-    // Let's insert a basic Mammaire template to help them start.
-    const defaultTemplate = {
-      clinic_id: clinicId,
-      intervention_type: 'Augmentation Mammaire',
-      name: 'Protocole Mammaire Standard',
-      is_global: false,
-      tasks: [
-        { label: 'Retirer pansement', patient_can_check: true, jour_post_op_ref: 3 },
-        { label: 'Envoyer photo cicatrice', patient_can_check: true, jour_post_op_ref: 7 },
-        { label: 'Premier rdv de contrôle', patient_can_check: false, jour_post_op_ref: 14 }
-      ]
-    };
-
-    await adminClient.from('protocol_templates').insert(defaultTemplate);
+    // 6. Seeding d'un protocole par défaut
+    try {
+      await adminClient.from('protocol_templates').insert({
+        clinic_id: clinicId,
+        intervention_type: 'Augmentation Mammaire',
+        name: 'Protocole Post-Op Standard',
+        is_global: false,
+        tasks: [
+          { label: 'Repos strict', patient_can_check: true, jour_post_op_ref: 1 },
+          { label: 'Surveillance température', patient_can_check: true, jour_post_op_ref: 2 },
+          { label: 'Retrait des pansements', patient_can_check: false, jour_post_op_ref: 5 }
+        ]
+      });
+    } catch (seedErr) {
+      console.warn('[signup-clinic] Seed protocol failed, skipping silently:', seedErr);
+    }
 
     return new Response(JSON.stringify({ success: true, clinic_id: clinicId }), { 
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (err: any) {
-    console.error('[signup-clinic] Unexpected error:', err)
-    return new Response(JSON.stringify({ error: err.message || 'Erreur interne au serveur' }), { 
+    console.error('[signup-clinic] Unexpected internal error:', err)
+    return new Response(JSON.stringify({ error: `Erreur interne : ${err.message}` }), { 
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }

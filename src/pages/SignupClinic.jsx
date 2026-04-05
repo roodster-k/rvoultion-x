@@ -39,15 +39,15 @@ export default function SignupClinic() {
       }
       
       if (data.error) {
-         throw new Error(data.error);
+         // Si on a des détails (ex: SQL error), on les affiche pour le debug
+         const fullError = data.details ? `${data.error} (${data.details})` : data.error;
+         throw new Error(fullError);
       }
 
       setSuccess(true);
       setStep(3);
     } catch (err) {
       console.error('Signup error:', err);
-      // Wait actually if edge function is not built, we will just simulate it or show error.
-      // For now, let's just log and show error
       setError(err.message || 'Une erreur est survenue lors de l\'inscription de votre clinique. Les fonctions Edge ne sont peut-être pas déployées.');
     } finally {
       setLoading(false);
