@@ -33,6 +33,19 @@ function ConnectionErrorScreen() {
   );
 }
 
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f5f54] via-[#0a4038] to-[#083830]">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent inline-flex items-center justify-center text-white text-2xl font-extrabold mb-4 shadow-lg">
+          +
+        </div>
+        <div className="text-white/80 text-sm font-medium tracking-wide">Chargement…</div>
+      </motion.div>
+    </div>
+  );
+}
+
 function App() {
   const { user, isStaff, isPatient, loading, supabaseHealth } = useAuth();
 
