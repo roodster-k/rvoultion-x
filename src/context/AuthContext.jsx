@@ -108,20 +108,21 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    // 0. Check Supabase Health
+    // 0. Check Supabase Health (Verifie juste que l'URL et les clés sont valides)
     const checkHealth = async () => {
       try {
-        const { error } = await supabase.from('clinics').select('count').limit(1);
-        if (error && error.code === 'PGRST301') {
-           // This is fine (no JWT), but if it's a connection error it's bad
+        // On tente une lecture minimale. Si on reçoit une erreur de permission (42501), 
+        // c'est que la connexion est OK mais que le RLS bloque (ce qui est normal pour anon).
+        const { error } = await supabase.from('clinics').select('id').limit(1);
+        
+        if (!error || error.code === '42501' || error.code === 'PGRST301') {
            setSupabaseHealth('ok');
-        } else if (error) {
-           console.error('[Supabase] Health check failed:', error);
-           setSupabaseHealth('error');
         } else {
-           setSupabaseHealth('ok');
+           console.error('[Supabase] Connection error:', error);
+           setSupabaseHealth('error');
         }
       } catch (e) {
+        console.error('[Supabase] Unexpected health check crash:', e);
         setSupabaseHealth('error');
       }
     };
