@@ -4,17 +4,13 @@ import { supabase } from '../lib/supabase';
 const AuthContext = createContext();
 
 /**
- * AuthContext enrichi — Phase 1 Étape 3.
+ * AuthContext — Phase 1 Étape 3 + Signup Fix.
  * 
- * FIX: Added explicit getSession() call on mount for reliable session restoration.
- * The previous implementation relied solely on onAuthStateChange + a 5s safety timeout,
- * which caused intermittent "infinite loading" on slow connections or when 
- * INITIAL_SESSION event was delayed.
- * 
- * New flow:
- * 1. Mount → getSession() → if session exists, fetchProfile → setLoading(false)
- * 2. onAuthStateChange listens for subsequent changes (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
- * 3. No more arbitrary timeout
+ * FIX (Migration 008):
+ * - refreshProfile() now uses supabase.auth.getSession() directly
+ *   instead of relying on the `user` React state variable.
+ *   This fixes a stale closure bug during signup where the async
+ *   handler captures `user = null` from before auth state change.
  */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -32,7 +28,6 @@ export function AuthProvider({ children }) {
     isFetchingProfile.current = true;
     console.log('[Auth] fetchProfile starting for:', authUser.email);
 
-    // Timeout helper to prevent infinite loading if RLS hangs
     const withTimeout = (promise, ms = 5000) => {
       return Promise.race([
         promise,
@@ -42,7 +37,6 @@ export function AuthProvider({ children }) {
 
     try {
       // 1. Try staff profile first
-      console.log('[Auth] Fetching staff profile...');
       const { data: staffProfile, error: staffError } = await withTimeout(
         supabase
           .from('users')
@@ -101,14 +95,14 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // 3. Auth exists but no profile in either table
+      // 3. Auth exists but no profile in either table (normal during onboarding)
       console.warn('[Auth] User authenticated but no profile found in DB:', authUser.email);
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
 
     } catch (err) {
-      console.error('[Auth] Profile fetch exception (likely RLS timeout/recursion):', err);
+      console.error('[Auth] Profile fetch exception:', err);
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
@@ -123,9 +117,6 @@ export function AuthProvider({ children }) {
 
     const initialize = async () => {
       try {
-        // ── Step 1: Explicitly check for existing session ──
-        // This is the recommended Supabase pattern. 
-        // getSession() reads from localStorage immediately — no network round-trip.
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
@@ -140,7 +131,6 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.error('[Auth] Initialization error:', err);
       } finally {
-        // Always release loading after initial check — no more 5s timeout
         if (mounted) {
           hasInitialized.current = true;
           setLoading(false);
@@ -148,22 +138,17 @@ export function AuthProvider({ children }) {
       }
     };
 
-    // ── Step 2: Listen for subsequent auth changes ──
-    // This handles: login, logout, token refresh, magic link callback
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
         console.log('[Auth] onAuthStateChange:', event, 'user:', !!session?.user);
 
-        // Skip INITIAL_SESSION since we handle it via getSession() above
-        // This avoids a double fetchProfile on first load
         if (event === 'INITIAL_SESSION' && hasInitialized.current) {
           return;
         }
 
         if (session?.user) {
           setUser(session.user);
-          // Only fetch profile if this is a new event (not the initial load we already handled)
           if (event !== 'INITIAL_SESSION') {
             await fetchProfile(session.user);
           }
@@ -175,7 +160,6 @@ export function AuthProvider({ children }) {
           document.documentElement.style.removeProperty('--primary');
         }
 
-        // If we haven't initialized yet (edge case), release loading
         if (mounted && !hasInitialized.current) {
           hasInitialized.current = true;
           setLoading(false);
@@ -183,7 +167,6 @@ export function AuthProvider({ children }) {
       }
     );
 
-    // Start initialization
     initialize();
 
     return () => {
@@ -212,18 +195,23 @@ export function AuthProvider({ children }) {
     document.documentElement.style.removeProperty('--primary');
   }, []);
 
-  // ─── Refresh profile (useful after profile updates) ───
+  // ─── Refresh profile ───
+  // FIX: Uses supabase.auth.getSession() directly instead of relying
+  // on the `user` state variable. This avoids stale closure issues when
+  // refreshProfile is called from an async handler that started before
+  // the auth state change was processed by React.
   const refreshProfile = useCallback(async () => {
-    if (user) {
-      await fetchProfile(user);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      setUser(session.user);
+      await fetchProfile(session.user);
     }
-  }, [user, fetchProfile]);
+  }, [fetchProfile]);
 
   // ─── Derived state ───
   const isStaff = Boolean(profile && profile.is_active);
   const isPatient = Boolean(patientRecord);
 
-  // Backward-compatible user shape for existing components
   const enrichedUser = user && profile ? {
     id: profile.id,
     authId: user.id,

@@ -86,32 +86,32 @@ ALTER TABLE protocol_templates ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION get_my_clinic_id()
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT clinic_id FROM users WHERE auth_user_id = auth.uid()
+  SELECT clinic_id FROM users WHERE auth_user_id = (SELECT auth.uid()) LIMIT 1
 $$;
 
 CREATE OR REPLACE FUNCTION get_my_patient_id()
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT id FROM patients WHERE auth_user_id = auth.uid()
+  SELECT id FROM patients WHERE auth_user_id = (SELECT auth.uid()) LIMIT 1
 $$;
 
 CREATE OR REPLACE FUNCTION get_my_patient_clinic_id()
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT clinic_id FROM patients WHERE auth_user_id = auth.uid()
+  SELECT clinic_id FROM patients WHERE auth_user_id = (SELECT auth.uid()) LIMIT 1
 $$;
 
 CREATE OR REPLACE FUNCTION is_staff()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS(SELECT 1 FROM users WHERE auth_user_id = auth.uid() AND is_active = true)
+  SELECT EXISTS(SELECT 1 FROM users WHERE auth_user_id = (SELECT auth.uid()) AND is_active = true)
 $$;
 
 CREATE OR REPLACE FUNCTION is_patient()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS(SELECT 1 FROM patients WHERE auth_user_id = auth.uid())
+  SELECT EXISTS(SELECT 1 FROM patients WHERE auth_user_id = (SELECT auth.uid()))
 $$;
 
 CREATE OR REPLACE FUNCTION get_my_role()
 RETURNS user_role LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT role FROM users WHERE auth_user_id = auth.uid()
+  SELECT role FROM users WHERE auth_user_id = (SELECT auth.uid()) LIMIT 1
 $$;
 
 
@@ -156,30 +156,45 @@ CREATE POLICY "v7_admin_update_clinic" ON clinics FOR UPDATE TO authenticated
 
 -- ────────────── USERS ──────────────
 
--- CRITICAL: A user must ALWAYS be able to read their own row (avoids recursion)
+-- 1. CRITICAL: A user must ALWAYS be able to read their own row (avoids recursion)
 CREATE POLICY "v7_user_select_own" ON users FOR SELECT TO authenticated
   USING (auth_user_id = auth.uid());
 
--- Staff sees colleagues in same clinic
+-- 2. Staff sees colleagues in same clinic
+-- Note: We use a subquery to help PG break the planning loop
 CREATE POLICY "v7_staff_select_colleagues" ON users FOR SELECT TO authenticated
-  USING (clinic_id = get_my_clinic_id());
+  USING (
+    clinic_id = (
+      SELECT u.clinic_id 
+      FROM users u 
+      WHERE u.auth_user_id = auth.uid()
+      LIMIT 1
+    )
+  );
 
--- Patient sees staff of their clinic (for messaging context)
+-- 3. Patient sees staff of their clinic (for messaging context)
 CREATE POLICY "v7_patient_select_clinic_staff" ON users FOR SELECT TO authenticated
-  USING (clinic_id = get_my_patient_clinic_id());
+  USING (
+    clinic_id = (
+      SELECT p.clinic_id 
+      FROM patients p 
+      WHERE p.auth_user_id = auth.uid()
+      LIMIT 1
+    )
+  );
 
--- Admin can insert staff
+-- 4. Admin can insert staff
 CREATE POLICY "v7_admin_insert_user" ON users FOR INSERT TO authenticated
   WITH CHECK (
     clinic_id = get_my_clinic_id() 
     AND get_my_role() IN ('clinic_admin', 'super_admin')
   );
 
--- Self-insert (needed during signup Edge Function flow)
+-- 5. Self-insert (needed during signup Edge Function flow)
 CREATE POLICY "v7_self_insert_user" ON users FOR INSERT TO authenticated
   WITH CHECK (auth_user_id = auth.uid());
 
--- Staff can update own profile; admin can update anyone in clinic
+-- 6. Staff can update own profile; admin can update anyone in clinic
 CREATE POLICY "v7_staff_update_user" ON users FOR UPDATE TO authenticated
   USING (
     clinic_id = get_my_clinic_id() 
@@ -187,7 +202,7 @@ CREATE POLICY "v7_staff_update_user" ON users FOR UPDATE TO authenticated
   )
   WITH CHECK (clinic_id = get_my_clinic_id());
 
--- Admin can deactivate users
+-- 7. Admin can deactivate users
 CREATE POLICY "v7_admin_delete_user" ON users FOR DELETE TO authenticated
   USING (clinic_id = get_my_clinic_id() AND get_my_role() IN ('clinic_admin', 'super_admin'));
 
