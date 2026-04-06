@@ -179,17 +179,16 @@ export function AuthProvider({ children }) {
         if (!mounted) return;
         console.log('[Auth] onAuthStateChange:', event, 'user:', !!session?.user);
 
-        // Avoid re-triggering for the same initial session if already initialized
         if (event === 'INITIAL_SESSION' && hasInitialized.current) {
           return;
         }
 
         if (session?.user) {
-          // Only show loading if we don't have a user yet or if it's a re-login
-          if (!user || user.id !== session.user.id) {
+          const isNewUser = !user || user.id !== session.user.id;
+          if (isNewUser) {
             setLoading(true);
+            setUser(session.user);
           }
-          setUser(session.user);
           await fetchProfile(session.user);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -202,7 +201,6 @@ export function AuthProvider({ children }) {
 
         if (mounted && !hasInitialized.current) {
           hasInitialized.current = true;
-          // Initial session with no user? Stop loading.
           if (!session?.user) setLoading(false);
         }
       }
@@ -214,7 +212,15 @@ export function AuthProvider({ children }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, user]);
+
+  // ─── Fail-safe: Ensure loading drops if we have data ───
+  useEffect(() => {
+    if ((profile || patientRecord) && loading) {
+      console.log('[Auth] Fail-safe: Data is ready, clearing loading spinner.');
+      setLoading(false);
+    }
+  }, [profile, patientRecord, loading]);
 
   // ─── Login: email/password (soignants) ───
   const login = useCallback(async (email, password) => {
