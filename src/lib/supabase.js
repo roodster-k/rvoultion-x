@@ -11,18 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Custom storage to bypass Navigator.locks API issues in production/environments
 const customStorage = {
-  getItem: (key) => {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(key);
-  },
-  setItem: (key, value) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(key, value);
-  },
-  removeItem: (key) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.removeItem(key);
-  },
+  getItem: (key) => typeof window !== 'undefined' ? window.localStorage.getItem(key) : null,
+  setItem: (key, value) => typeof window !== 'undefined' ? window.localStorage.setItem(key, value) : null,
+  removeItem: (key) => typeof window !== 'undefined' ? window.localStorage.removeItem(key) : null,
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -32,6 +23,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     storageKey: 'postop-auth-token',
-    flowType: 'pkce'
+    flowType: 'pkce',
+    lockAcquisitionTimeout: 0 // Disable locking API to prevent stalls in production
   }
 });

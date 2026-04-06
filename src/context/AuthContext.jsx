@@ -179,12 +179,16 @@ export function AuthProvider({ children }) {
         if (!mounted) return;
         console.log('[Auth] onAuthStateChange:', event, 'user:', !!session?.user);
 
+        // Avoid re-triggering for the same initial session if already initialized
         if (event === 'INITIAL_SESSION' && hasInitialized.current) {
           return;
         }
 
         if (session?.user) {
-          setLoading(true); // Re-enable loading during profile fetch
+          // Only show loading if we don't have a user yet or if it's a re-login
+          if (!user || user.id !== session.user.id) {
+            setLoading(true);
+          }
           setUser(session.user);
           await fetchProfile(session.user);
         } else if (event === 'SIGNED_OUT') {
@@ -198,6 +202,8 @@ export function AuthProvider({ children }) {
 
         if (mounted && !hasInitialized.current) {
           hasInitialized.current = true;
+          // Initial session with no user? Stop loading.
+          if (!session?.user) setLoading(false);
         }
       }
     );
