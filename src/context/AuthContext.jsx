@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
 
   const isFetchingProfile = useRef(false);
   const hasInitialized = useRef(false);
+  const currentUserIdRef = useRef(null);
 
   // ─── Fetch profile from `users` table (staff) or `patients` table (patient) ───
   const fetchProfile = useCallback(async (authUser) => {
@@ -158,7 +159,10 @@ export function AuthProvider({ children }) {
 
         if (mounted && session?.user) {
           console.log('[Auth] Existing session found for:', session.user.email);
-          setUser(session.user);
+          if (currentUserIdRef.current !== session.user.id) {
+            currentUserIdRef.current = session.user.id;
+            setUser(session.user);
+          }
           await fetchProfile(session.user);
         } else {
           // No session, stop loading
@@ -184,13 +188,15 @@ export function AuthProvider({ children }) {
         }
 
         if (session?.user) {
-          const isNewUser = !user || user.id !== session.user.id;
+          const isNewUser = currentUserIdRef.current !== session.user.id;
           if (isNewUser) {
             setLoading(true);
+            currentUserIdRef.current = session.user.id;
             setUser(session.user);
           }
           await fetchProfile(session.user);
         } else if (event === 'SIGNED_OUT') {
+          currentUserIdRef.current = null;
           setUser(null);
           setProfile(null);
           setPatientRecord(null);
@@ -212,7 +218,7 @@ export function AuthProvider({ children }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile, user]);
+  }, [fetchProfile]);
 
   // ─── Fail-safe: Ensure loading drops if we have data ───
   useEffect(() => {
