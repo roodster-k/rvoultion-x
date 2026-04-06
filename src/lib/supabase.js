@@ -9,15 +9,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Custom storage to bypass Navigator.locks API issues in production/environments
+const customStorage = {
+  getItem: (key) => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem(key);
+  },
+  setItem: (key, value) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(key, value);
+  },
+  removeItem: (key) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.removeItem(key);
+  },
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    storage: customStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
     storageKey: 'postop-auth-token',
-    // Disable the lock API if it's causing stalls (common in local dev/agents)
-    // Note: older versions of supabase-js might not support this key, 
-    // but it's safe to include as an extra property.
     flowType: 'pkce'
   }
 });
