@@ -47,42 +47,48 @@ function LoadingScreen() {
 }
 
 function App() {
-  const { user, isStaff, isPatient, loading } = useAuth();
+  const { user, isPatient, loading } = useAuth();
 
-  if (loading) return <LoadingScreen />;
-
+  // BrowserRouter is always mounted so useNavigate() remains valid
+  // even when SignupClinic or LoginPage is temporarily unmounted during auth loading.
   return (
     <BrowserRouter>
-      <Routes>
-        {/* ─── Public routes ─── */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/signup" element={<SignupClinic />} />
-        <Route path="/login" element={<LoginPage />} />
+      {loading ? (
+        <LoadingScreen />
+      ) : (
+        <Routes>
+          {/* ─── Always public ─── */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* ─── Patient routes (accessible if token or auth) ─── */}
-        <Route path="/patient/:token" element={<PatientPortal />} />
-        <Route path="/patient/activate" element={<PatientActivation />} />
-        <Route path="/patient/portal" element={<PatientPortalAuth />} />
+          {/* ─── Patient routes (token or magic-link auth) ─── */}
+          <Route path="/patient/:token" element={<PatientPortal />} />
+          <Route path="/patient/activate" element={<PatientActivation />} />
+          <Route path="/patient/portal" element={<PatientPortalAuth />} />
 
-        {/* ─── Protected routes (Auth Required) ─── */}
-        {user ? (
-          isPatient ? (
-            <>
-              <Route path="/dashboard" element={<Navigate to="/patient/portal" replace />} />
-              <Route path="*" element={<Navigate to="/patient/portal" replace />} />
-            </>
+          {/* ─── Auth-dependent routes ─── */}
+          {user ? (
+            isPatient ? (
+              <>
+                <Route path="/dashboard" element={<Navigate to="/patient/portal" replace />} />
+                <Route path="*" element={<Navigate to="/patient/portal" replace />} />
+              </>
+            ) : (
+              <>
+                <Route path="/dashboard/*" element={<NurseDashboard />} />
+                <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </>
+            )
           ) : (
             <>
-              <Route path="/dashboard/*" element={<NurseDashboard />} />
-              <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupClinic />} />
+              <Route path="/dashboard/*" element={<Navigate to="/login" replace />} />
             </>
-          )
-        ) : (
-          <Route path="/dashboard/*" element={<Navigate to="/login" replace />} />
-        )}
-      </Routes>
+          )}
+        </Routes>
+      )}
     </BrowserRouter>
   );
 }
