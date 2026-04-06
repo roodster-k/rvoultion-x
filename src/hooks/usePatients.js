@@ -4,11 +4,23 @@ import { useAuth } from '../context/AuthContext';
 
 /**
  * Custom hook — all patient CRUD ops via Supabase.
- * 
- * ADAPTER PATTERN (Étape 4) : 
+ *
+ * ADAPTER PATTERN (Étape 4) :
  * - Le hook interroge les vraies tables V2 (patients, tasks, messages, photos)
  * - Il convertit les données récupérées dans l'ancien format V1 pour la compatibilité UI.
  */
+
+// Parse notes field: supports JSON array (new) and plain text (legacy)
+function parseNotes(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    return [{ text: raw, author: 'Système', ts: new Date(0).toISOString() }];
+  } catch {
+    return [{ text: raw, author: 'Système', ts: new Date(0).toISOString() }];
+  }
+}
 export default function usePatients() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +86,7 @@ export default function usePatients() {
       (photosRes.data || []).forEach(p => {
         if (!photosMap[p.patient_id]) photosMap[p.patient_id] = [];
         photosMap[p.patient_id].push({
+          id: p.id,
           jour: p.jour_post_op,
           label: p.label,
           storage_path: p.storage_path,
@@ -112,8 +125,10 @@ export default function usePatients() {
           email: p.email || '',
           phone: p.phone || '',
           whatsapp: p.whatsapp || '',
-          notes: p.notes || '',
+          notes: parseNotes(p.notes),
           token: p.token,
+          invited_at: p.invited_at || null,
+          auth_user_id: p.auth_user_id || null,
           checklist: checklistMap[p.id] || [],
           messages: messagesMap[p.id] || [],
           photos: photosMap[p.id] || [],
@@ -342,23 +357,51 @@ export default function usePatients() {
     }
   }, [patients, profile, fetchPatients]);
 
-  const addNote = useCallback(async (patientId, noteText) => {
-    // Optimistic update
+  const addNote = useCallback(async (patientId, noteText, authorName = 'Équipe') => {
+    const patient = patients.find(p => p.id === patientId);
+    const existing = Array.isArray(patient?.notes) ? patient.notes : [];
+    const newEntry = { text: noteText, author: authorName, ts: new Date().toISOString() };
+    const updated = [newEntry, ...existing];
+
     setPatients(prev => prev.map(p =>
-      p.id === patientId ? { ...p, notes: noteText } : p
+      p.id === patientId ? { ...p, notes: updated } : p
     ));
 
-    // V2 update on 'patients' table
     const { error } = await supabase
       .from('patients')
-      .update({ notes: noteText })
+      .update({ notes: JSON.stringify(updated) })
       .eq('id', patientId);
 
     if (error) {
       console.error('[addNote] Error:', error);
       fetchPatients();
     }
+  }, [patients, fetchPatients]);
+
+  const updatePatientStatus = useCallback(async (patientId, newStatus) => {
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? { ...p, status: newStatus } : p
+    ));
+    const { error } = await supabase
+      .from('patients')
+      .update({ status: newStatus })
+      .eq('id', patientId);
+    if (error) {
+      console.error('[updatePatientStatus] Error:', error);
+      fetchPatients();
+    }
   }, [fetchPatients]);
+
+  const invitePatient = useCallback(async (patientId) => {
+    const { data, error } = await supabase.functions.invoke('invite-patient', {
+      body: { patient_id: patientId },
+    });
+    if (error) return { error };
+    setPatients(prev => prev.map(p =>
+      p.id === patientId ? { ...p, invited_at: new Date().toISOString() } : p
+    ));
+    return { data };
+  }, []);
 
   const submitPainScore = useCallback(async (patientId, score, jour_post_op, notes = null) => {
     if (!profile) return;
@@ -589,6 +632,8 @@ export default function usePatients() {
     addNote,
     addPatient,
     submitPainScore,
+    updatePatientStatus,
+    invitePatient,
     getPatientById,
     getPatientByToken,
     getFilteredPatients,
