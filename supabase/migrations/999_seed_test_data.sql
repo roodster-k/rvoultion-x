@@ -21,16 +21,25 @@ BEGIN
 
     RAISE NOTICE 'Utilisation de la clinique : %', (SELECT name FROM clinics WHERE id = v_clinic_id);
 
-    -- 1. Création d'un patient test (Si non existant)
-    INSERT INTO patients (
-        clinic_id, surgeon_id, full_name, email, phone, whatsapp, 
-        intervention, surgery_date, status, notes
-    ) VALUES (
-        v_clinic_id, v_surgeon_id, 'Sarah Bernard', 'sarah.test@example.com', '+32 475 00 11 22', '+32475001122',
-        'Augmentation Mammaire', CURRENT_DATE - INTERVAL '3 days', 'normal', 'Patient test pour démonstration. Évolution favorable à J+3.'
-    ) 
-    ON CONFLICT (email) DO UPDATE SET full_name = EXCLUDED.full_name
-    RETURNING id INTO v_patient_id;
+    -- 1. Création d'un patient test (Vérification manuelle car pas de contrainte UNIQUE sur email)
+    SELECT id INTO v_patient_id FROM patients WHERE email = 'sarah.test@example.com' LIMIT 1;
+
+    IF v_patient_id IS NULL THEN
+        INSERT INTO patients (
+            clinic_id, surgeon_id, full_name, email, phone, whatsapp, 
+            intervention, surgery_date, status, notes
+        ) VALUES (
+            v_clinic_id, v_surgeon_id, 'Sarah Bernard', 'sarah.test@example.com', '+32 475 00 11 22', '+32475001122',
+            'Augmentation Mammaire', CURRENT_DATE - INTERVAL '3 days', 'normal', 'Patient test pour démonstration. Évolution favorable à J+3.'
+        ) RETURNING id INTO v_patient_id;
+    ELSE
+        UPDATE patients SET 
+            full_name = 'Sarah Bernard',
+            clinic_id = v_clinic_id,
+            surgeon_id = v_surgeon_id,
+            status = 'normal'
+        WHERE id = v_patient_id;
+    END IF;
 
     -- 2. Création de tâches pour ce patient
     -- On simule des tâches déjà faites et à faire
