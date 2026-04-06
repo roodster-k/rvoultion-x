@@ -13,12 +13,14 @@
 import { createContext, useContext, useCallback } from 'react';
 import { usePatientContext } from './PatientContext';
 import { useAlertContext } from './AlertContext';
+import { useAuth } from './AuthContext';
 
 const DataContext = createContext();
 
 export function DataProvider({ children }) {
   const patientCtx = usePatientContext();
   const alertCtx = useAlertContext();
+  const { profile } = useAuth();
 
   // Bridge: toggleTask with alert side-effect (patient action notification)
   const toggleTask = useCallback((patientId, taskId, isPatientAction = false) => {
@@ -56,6 +58,11 @@ export function DataProvider({ children }) {
     patientCtx.addPhoto(patientId, photoLabel);
   }, [patientCtx, alertCtx]);
 
+  // Bridge: addNote with author name from current profile
+  const addNote = useCallback((patientId, noteText) => {
+    patientCtx.addNote(patientId, noteText, profile?.full_name || 'Équipe');
+  }, [patientCtx, profile]);
+
   return (
     <DataContext.Provider value={{
       // Patient data
@@ -64,9 +71,11 @@ export function DataProvider({ children }) {
       addCustomTask: patientCtx.addCustomTask,
       sendMessage,
       addPhoto,
-      addNote: patientCtx.addNote,
+      addNote,
       addPatient: patientCtx.addPatient,
-      // Alert data  
+      updatePatientStatus: patientCtx.updatePatientStatus,
+      invitePatient: patientCtx.invitePatient,
+      // Alert data
       alerts: alertCtx.alerts,
       setAlerts: alertCtx.setAlerts,
       // New context-specific accessors (for progressive migration)

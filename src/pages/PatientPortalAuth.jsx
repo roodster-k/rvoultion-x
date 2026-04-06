@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut } from 'lucide-react';
+import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
+import PainChart from '../components/PainChart';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { getEducationalContent } from '../data/educationalContent';
 
 /**
  * PatientPortalAuth — Portail patient sécurisé via Supabase Auth.
@@ -29,6 +31,10 @@ export default function PatientPortalAuth() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [submittingPain, setSubmittingPain] = useState(false);
+  // Check-in quotidien étendu
+  const [checkinStep, setCheckinStep] = useState(1); // 1=douleur, 2=symptômes
+  const [selectedScore, setSelectedScore] = useState(null);
+  const [checkinData, setCheckinData] = useState({ temperature: '', swelling_level: null, other_symptoms: '' });
 
   // ─── Redirect if not authenticated as patient ───
   useEffect(() => {
@@ -125,15 +131,16 @@ export default function PatientPortalAuth() {
     }
   };
 
-  // ─── Submit pain score ───
-  const handleSubmitPain = async (score) => {
+  // ─── Submit check-in complet (douleur + symptômes) ───
+  const handleSubmitCheckin = async (score, extraData = {}) => {
     if (!patient) return;
     setSubmittingPain(true);
 
-    const surgeryDateStr = patient.surgery_date;
-    const surgeryDate = new Date(surgeryDateStr);
-    const today = new Date();
-    const currentJourPostOp = Math.max(0, Math.floor((today - surgeryDate) / (1000 * 60 * 60 * 24)));
+    const currentJourPostOp = Math.max(
+      0,
+      Math.floor((new Date() - new Date(patient.surgery_date)) / (1000 * 60 * 60 * 24))
+    );
+    const hasFever = extraData.temperature ? parseFloat(extraData.temperature) >= 38.0 : false;
 
     try {
       const { error } = await supabase.from('pain_scores').upsert({
@@ -141,24 +148,36 @@ export default function PatientPortalAuth() {
         clinic_id: patient.clinic_id,
         score,
         jour_post_op: currentJourPostOp,
+        temperature: extraData.temperature ? parseFloat(extraData.temperature) : null,
+        swelling_level: extraData.swelling_level ?? null,
+        has_fever: hasFever,
+        other_symptoms: extraData.other_symptoms || null,
       }, { onConflict: 'patient_id, jour_post_op' });
 
       if (error) throw error;
 
-      if (score >= 6) {
+      // Alertes si douleur élevée ou fièvre
+      if (score >= 6 || hasFever) {
+        const alertTitle = hasFever ? `Fièvre signalée` : `Douleur signalée : ${score}/10`;
+        const alertMsg = hasFever
+          ? `${patient.full_name.split(' ')[0]} a signalé une fièvre (${extraData.temperature}°C) à J+${currentJourPostOp}.`
+          : `Le patient a signalé une douleur de ${score}/10 aujourd'hui.`;
         await supabase.from('alerts').insert({
           clinic_id: patient.clinic_id,
           patient_id: patient.id,
           type: 'action',
-          title: `Douleur signalée : ${score}/10`,
-          message: `Le patient a signalé une douleur de ${score}/10 aujourd'hui.`
+          title: alertTitle,
+          message: alertMsg,
         });
       }
 
+      setCheckinStep(1);
+      setSelectedScore(null);
+      setCheckinData({ temperature: '', swelling_level: null, other_symptoms: '' });
       await fetchData();
     } catch (e) {
       console.error(e);
-      alert('Erreur lors de la soumission de la douleur.');
+      alert('Erreur lors de la soumission. Veuillez réessayer.');
     } finally {
       setSubmittingPain(false);
     }
@@ -397,10 +416,12 @@ export default function PatientPortalAuth() {
             {[
               { id: 'tasks', icon: <Check size={20} />, label: 'Tâches' },
               { id: 'photos', icon: <Camera size={20} />, label: 'Photos' },
-              { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages' }
+              { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages' },
+              { id: 'evolution', icon: <TrendingUp size={20} />, label: 'Évolution' },
+              { id: 'info', icon: <Info size={20} />, label: 'Infos' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`
-                flex-1 min-w-[30%] py-3 px-1.5 rounded-[14px] border-none font-bold text-[13px] transition-all cursor-pointer flex flex-col items-center gap-1.5
+                flex-1 min-w-[28%] py-3 px-1.5 rounded-[14px] border-none font-bold text-[13px] transition-all cursor-pointer flex flex-col items-center gap-1.5
                 ${activeTab === tab.id ? 'bg-primary text-white shadow-button' : 'bg-white text-text-muted shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:text-text-dark hover:bg-slate-50'}`}>
                 {tab.icon} {tab.label}
               </button>
@@ -411,32 +432,98 @@ export default function PatientPortalAuth() {
           {activeTab === 'tasks' && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
               
-              {/* Daily Pain Tracker Component */}
+              {/* Bilan quotidien — 2 étapes */}
               {!hasSubmittedPainToday && (
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} 
-                   className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-primary/20 text-center">
-                  <h3 className="text-text-dark font-bold text-[16px] mb-2 flex justify-center items-center gap-2">
-                    <AlertCircle size={18} className="text-status-attention" /> 
-                    Évaluez votre douleur aujourd'hui
-                  </h3>
-                  <p className="text-text-muted text-[13px] mb-5">
-                    Sélectionnez un niveau de 0 (aucune) à 10 (maximale).
-                  </p>
-                  
-                  <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-border">
-                    {[0,1,2,3,4,5,6,7,8,9,10].map(score => (
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-primary/20">
+
+                  {checkinStep === 1 && (
+                    <>
+                      <h3 className="text-text-dark font-bold text-[16px] mb-1 flex items-center gap-2">
+                        <AlertCircle size={18} className="text-status-attention" />
+                        Bilan du jour — J+{jourPostOp}
+                      </h3>
+                      <p className="text-text-muted text-[13px] mb-5">Évaluez votre douleur (0 = aucune, 10 = maximale).</p>
+                      <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-border">
+                        {[0,1,2,3,4,5,6,7,8,9,10].map(score => (
+                          <button key={score} disabled={submittingPain}
+                            onClick={() => { setSelectedScore(score); setCheckinStep(2); }}
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-[14px] transition-all hover:scale-110 cursor-pointer disabled:opacity-50 border-none bg-transparent
+                              ${score <= 3 ? 'text-emerald-700 hover:bg-emerald-100' : score <= 6 ? 'text-amber-600 hover:bg-amber-100' : 'text-red-600 hover:bg-red-100'}`}>
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {checkinStep === 2 && (
+                    <>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-text-dark font-bold text-[16px] flex items-center gap-2">
+                          <AlertCircle size={18} className="text-status-attention" />
+                          Douleur : {selectedScore}/10 — Autres symptômes ?
+                        </h3>
+                        <button onClick={() => setCheckinStep(1)}
+                          className="text-text-muted text-[12px] font-semibold bg-transparent border-none cursor-pointer hover:text-text-dark">
+                          ← Modifier
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Température */}
+                        <div>
+                          <label className="block text-[13px] font-bold text-text-dark mb-1.5">🌡️ Température (°C)</label>
+                          <input type="number" step="0.1" min="35" max="42"
+                            value={checkinData.temperature}
+                            onChange={e => setCheckinData(p => ({ ...p, temperature: e.target.value }))}
+                            placeholder="Ex : 37.2"
+                            className="w-full border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                          {checkinData.temperature && parseFloat(checkinData.temperature) >= 38.0 && (
+                            <p className="text-[12px] text-red-600 font-bold mt-1">⚠️ Fièvre détectée — votre équipe sera notifiée.</p>
+                          )}
+                        </div>
+
+                        {/* Gonflement */}
+                        <div>
+                          <label className="block text-[13px] font-bold text-text-dark mb-2">💧 Niveau de gonflement</label>
+                          <div className="flex gap-2 flex-wrap">
+                            {[
+                              { value: 0, label: 'Aucun', color: 'emerald' },
+                              { value: 1, label: 'Léger', color: 'amber' },
+                              { value: 2, label: 'Modéré', color: 'orange' },
+                              { value: 3, label: 'Sévère', color: 'red' },
+                            ].map(opt => (
+                              <button key={opt.value}
+                                onClick={() => setCheckinData(p => ({ ...p, swelling_level: p.swelling_level === opt.value ? null : opt.value }))}
+                                className={`flex-1 min-w-[70px] py-2 px-3 rounded-xl text-[12px] font-bold border transition-all cursor-pointer
+                                  ${checkinData.swelling_level === opt.value
+                                    ? `bg-${opt.color}-500 text-white border-${opt.color}-500`
+                                    : `bg-${opt.color}-50 text-${opt.color}-700 border-${opt.color}-200 hover:bg-${opt.color}-100`}`}>
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Autres symptômes */}
+                        <div>
+                          <label className="block text-[13px] font-bold text-text-dark mb-1.5">📝 Autres symptômes (optionnel)</label>
+                          <textarea value={checkinData.other_symptoms}
+                            onChange={e => setCheckinData(p => ({ ...p, other_symptoms: e.target.value }))}
+                            rows={2} placeholder="Décrivez d'autres sensations ou symptômes..."
+                            className="w-full border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 resize-none" />
+                        </div>
+                      </div>
+
                       <button
-                        key={score}
+                        onClick={() => handleSubmitCheckin(selectedScore, checkinData)}
                         disabled={submittingPain}
-                        onClick={() => handleSubmitPain(score)}
-                        className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-[14px] transition-all
-                          ${score <= 3 ? 'text-emerald-700 hover:bg-emerald-100' : score <= 6 ? 'text-amber-600 hover:bg-amber-100' : 'text-red-600 hover:bg-red-100'} 
-                          hover:scale-110 cursor-pointer disabled:opacity-50 border-none bg-transparent`}
-                      >
-                        {score}
+                        className="mt-5 w-full py-3 bg-primary hover:bg-primary-dark text-white border-none rounded-xl font-bold text-[14px] cursor-pointer disabled:opacity-60 transition-colors shadow-sm">
+                        {submittingPain ? 'Envoi en cours...' : '✓ Envoyer mon bilan du jour'}
                       </button>
-                    ))}
-                  </div>
+                    </>
+                  )}
                 </motion.div>
               )}
 
@@ -614,6 +701,48 @@ export default function PatientPortalAuth() {
               </div>
             </motion.div>
           )}
+          {/* Évolution Tab */}
+          {activeTab === 'evolution' && (
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              <div className="bg-white rounded-[20px] p-6 shadow-sm border border-border">
+                <h3 className="text-[16px] font-bold text-text-dark mb-1">Évolution de votre douleur</h3>
+                <p className="text-[13px] text-text-muted mb-5">Vos scores déclarés au fil des jours post-opératoires.</p>
+                <PainChart
+                  painScores={painScores.map(ps => ({ score: ps.score, jour: ps.jour_post_op }))}
+                  height={160}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {/* Infos Tab */}
+          {activeTab === 'info' && (() => {
+            const eduContent = getEducationalContent(patient.intervention);
+            return (
+              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                <div className="bg-white rounded-[20px] p-6 shadow-sm border border-border mb-4">
+                  <h3 className="font-serif text-[18px] font-bold text-text-dark mb-1">{eduContent.title}</h3>
+                  <p className="text-[12px] text-text-muted font-semibold uppercase tracking-wide">
+                    Informations post-opératoires
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {eduContent.sections.map((section, i) => (
+                    <div key={i} className="bg-white rounded-[18px] p-5 shadow-sm border border-border">
+                      <h4 className="font-bold text-[14px] text-text-dark mb-2">{section.heading}</h4>
+                      <p className="text-[13px] text-text-muted leading-relaxed font-medium">{section.body}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 bg-primary-light rounded-[16px] p-4 border border-primary/20 text-center">
+                  <p className="text-[12px] text-primary font-bold">
+                    Ces informations ne remplacent pas l'avis médical. En cas de doute, contactez votre équipe via la messagerie.
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })()}
+
         </motion.div>
       </main>
 
