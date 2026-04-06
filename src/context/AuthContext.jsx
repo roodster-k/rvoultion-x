@@ -6,27 +6,25 @@ const AuthContext = createContext();
 /**
  * AuthContext enrichi — Phase 1 Étape 3.
  * 
- * Après login/session restore, charge le profil complet depuis la table `users`
- * (clinic_id, role, full_name) ou détecte si c'est un patient.
+ * FIX: Added explicit getSession() call on mount for reliable session restoration.
+ * The previous implementation relied solely on onAuthStateChange + a 5s safety timeout,
+ * which caused intermittent "infinite loading" on slow connections or when 
+ * INITIAL_SESSION event was delayed.
  * 
- * Expose :
- *   user       — Supabase Auth user brut (id, email)
- *   profile    — Row de la table `users` (clinic_id, role, full_name, ...)
- *   patientRecord — Row de la table `patients` si c'est un patient auth
- *   isStaff    — boolean
- *   isPatient  — boolean
- *   loading    — boolean
- *   login      — (email, password) → signInWithPassword
- *   logout     — signOut + clear state
+ * New flow:
+ * 1. Mount → getSession() → if session exists, fetchProfile → setLoading(false)
+ * 2. onAuthStateChange listens for subsequent changes (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
+ * 3. No more arbitrary timeout
  */
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);         // Supabase Auth user
-  const [profile, setProfile] = useState(null);    // Table users row
-  const [patientRecord, setPatientRecord] = useState(null); // Table patients row (if patient)
-  const [clinicSettings, setClinicSettings] = useState(null); // Table clinics row
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [patientRecord, setPatientRecord] = useState(null);
+  const [clinicSettings, setClinicSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const isFetchingProfile = useRef(false);
+  const hasInitialized = useRef(false);
 
   // ─── Fetch profile from `users` table (staff) or `patients` table (patient) ───
   const fetchProfile = useCallback(async (authUser) => {
@@ -34,22 +32,34 @@ export function AuthProvider({ children }) {
     isFetchingProfile.current = true;
     console.log('[Auth] fetchProfile starting for:', authUser.email);
 
+    // Timeout helper to prevent infinite loading if RLS hangs
+    const withTimeout = (promise, ms = 5000) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), ms))
+      ]);
+    };
+
     try {
       // 1. Try staff profile first
-      const { data: staffProfile, error: staffError } = await supabase
-        .from('users')
-        .select(`
-          *,
-          clinics (name, logo_url, primary_color)
-        `)
-        .eq('auth_user_id', authUser.id)
-        .maybeSingle();
+      console.log('[Auth] Fetching staff profile...');
+      const { data: staffProfile, error: staffError } = await withTimeout(
+        supabase
+          .from('users')
+          .select(`
+            *,
+            clinics (name, logo_url, primary_color)
+          `)
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle()
+      );
 
       if (staffError) {
         console.error('[Auth] Staff profile fetch error:', staffError);
       }
 
       if (staffProfile) {
+        console.log('[Auth] Staff profile found.');
         const { clinics, ...restProfile } = staffProfile;
         setProfile(restProfile);
         setPatientRecord(null);
@@ -62,20 +72,24 @@ export function AuthProvider({ children }) {
       }
 
       // 2. Not a staff member — try patient
-      const { data: patientProfile, error: patientError } = await supabase
-        .from('patients')
-        .select(`
-          *,
-          clinics (name, logo_url, primary_color)
-        `)
-        .eq('auth_user_id', authUser.id)
-        .maybeSingle();
+      console.log('[Auth] No staff profile, fetching patient profile...');
+      const { data: patientProfile, error: patientError } = await withTimeout(
+        supabase
+          .from('patients')
+          .select(`
+            *,
+            clinics (name, logo_url, primary_color)
+          `)
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle()
+      );
 
       if (patientError) {
         console.error('[Auth] Patient profile fetch error:', patientError);
       }
 
       if (patientProfile) {
+        console.log('[Auth] Patient profile found.');
         const { clinics, ...restPatient } = patientProfile;
         setPatientRecord(restPatient);
         setProfile(null);
@@ -87,15 +101,14 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // 3. Auth exists but no profile in either table — edge case
-      // This can happen during patient activation (between auth creation and profile linking)
-      console.warn('[Auth] User authenticated but no profile found:', authUser.email);
+      // 3. Auth exists but no profile in either table
+      console.warn('[Auth] User authenticated but no profile found in DB:', authUser.email);
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
 
     } catch (err) {
-      console.error('[Auth] Profile fetch exception:', err);
+      console.error('[Auth] Profile fetch exception (likely RLS timeout/recursion):', err);
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
@@ -105,53 +118,77 @@ export function AuthProvider({ children }) {
   }, []);
 
   // ─── Initialize: restore session + listen for changes ───
-
-
   useEffect(() => {
     let mounted = true;
 
-    // ─── Unified Initialization (Lighter version) ───
-    const setupListener = async () => {
-      // Cleanup hook logic if needed, but the main work is the subscription
-      console.log('[Auth] Setting up Auth listener (no manual getSession)...');
-      
-      // Safety net: release the loading screen if we don't get an INITIAL_SESSION within 5s
-      const timer = setTimeout(() => {
+    const initialize = async () => {
+      try {
+        // ── Step 1: Explicitly check for existing session ──
+        // This is the recommended Supabase pattern. 
+        // getSession() reads from localStorage immediately — no network round-trip.
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('[Auth] getSession error:', sessionError);
+        }
+
+        if (mounted && session?.user) {
+          console.log('[Auth] Existing session found for:', session.user.email);
+          setUser(session.user);
+          await fetchProfile(session.user);
+        }
+      } catch (err) {
+        console.error('[Auth] Initialization error:', err);
+      } finally {
+        // Always release loading after initial check — no more 5s timeout
         if (mounted) {
-          console.log('[Auth] Initialization safety timeout triggered.');
+          hasInitialized.current = true;
           setLoading(false);
         }
-      }, 5000);
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (!mounted) return;
-          console.log('[Auth] onAuthStateChange:', event, 'user:', !!session?.user);
-
-          if (session?.user) {
-            setUser(session.user);
-            await fetchProfile(session.user);
-          } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-            setUser(null);
-            setProfile(null);
-          }
-
-          if (mounted) {
-            setLoading(false);
-            clearTimeout(timer);
-          }
-        }
-      );
-
-      return subscription;
+      }
     };
 
-    let sub;
-    setupListener().then(s => sub = s);
+    // ── Step 2: Listen for subsequent auth changes ──
+    // This handles: login, logout, token refresh, magic link callback
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        console.log('[Auth] onAuthStateChange:', event, 'user:', !!session?.user);
+
+        // Skip INITIAL_SESSION since we handle it via getSession() above
+        // This avoids a double fetchProfile on first load
+        if (event === 'INITIAL_SESSION' && hasInitialized.current) {
+          return;
+        }
+
+        if (session?.user) {
+          setUser(session.user);
+          // Only fetch profile if this is a new event (not the initial load we already handled)
+          if (event !== 'INITIAL_SESSION') {
+            await fetchProfile(session.user);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+          setPatientRecord(null);
+          setClinicSettings(null);
+          document.documentElement.style.removeProperty('--primary');
+        }
+
+        // If we haven't initialized yet (edge case), release loading
+        if (mounted && !hasInitialized.current) {
+          hasInitialized.current = true;
+          setLoading(false);
+        }
+      }
+    );
+
+    // Start initialization
+    initialize();
 
     return () => {
       mounted = false;
-      if (sub) sub.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [fetchProfile]);
 
@@ -162,8 +199,6 @@ export function AuthProvider({ children }) {
       password,
     });
     if (error) throw error;
-
-    // Profile will be fetched by onAuthStateChange → SIGNED_IN
     return data;
   }, []);
 
@@ -208,21 +243,14 @@ export function AuthProvider({ children }) {
   } : null;
 
   const value = useMemo(() => ({
-    // Core auth
     user: enrichedUser,
-    authUser: user,       // Raw Supabase Auth user (for edge cases)
-    profile,              // Full staff profile from `users` table
-    patientRecord,        // Full patient record if authenticated as patient
-    clinicSettings,       // Brand settings from `clinics` table
-
-    // Role detection
+    authUser: user,
+    profile,
+    patientRecord,
+    clinicSettings,
     isStaff,
     isPatient,
-    
-    // State
     loading,
-
-    // Actions
     login,
     logout,
     refreshProfile,

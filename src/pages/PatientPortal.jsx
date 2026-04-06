@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import { usePatientContext } from '../context/PatientContext';
-import { useData } from '../context/DataContext';
 
 export default function PatientPortal() {
   const { token } = useParams();
@@ -15,11 +14,13 @@ export default function PatientPortal() {
 
   const patient = patients.find(p => p.token === token);
 
+  // FIX: useEffect was used but never imported — this caused a crash
   useEffect(() => {
     if (!patient && token && !loading) {
       fetchSinglePatientByToken(token);
     }
   }, [token, patient, loading, fetchSinglePatientByToken]);
+
   const [activeTab, setActiveTab] = useState('tasks');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);

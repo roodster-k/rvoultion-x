@@ -5,7 +5,7 @@ import { useAlertContext } from '../context/AlertContext';
 
 export default function Sidebar({ 
   activeView, setActiveView, currentPatient,
-  setSelectedPatientId, setSidebarOpen
+  setSelectedPatientId, setSidebarOpen, sidebarOpen
 }) {
   const { user, profile, clinicSettings, logout } = useAuth();
   const { alerts } = useAlertContext();
@@ -13,7 +13,7 @@ export default function Sidebar({
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'clinic_admin';
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <div className="mb-8 px-2 flex items-center gap-3">
         {clinicSettings?.logo_url ? (
           <img src={clinicSettings.logo_url} alt="Logo" className="w-10 h-10 object-contain rounded-xl" />

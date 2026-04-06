@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheck, 
   Zap, 
@@ -8,11 +9,15 @@ import {
   CheckCircle2, 
   ArrowRight,
   MessageSquare,
-  Activity
+  Activity,
+  Menu,
+  X
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
@@ -35,21 +40,53 @@ export default function LandingPage() {
             <span className="text-xl font-black font-serif text-primary tracking-tight">PostOp Tracker</span>
           </div>
           
-          <div className="hidden md:flex items-center gap-10 text-sm font-bold text-text-muted">
-            <a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a>
-            <a href="#solutions" className="hover:text-primary transition-colors">Solutions</a>
-            <a href="#pricing" className="hover:text-primary transition-colors">Tarifs</a>
-          </div>
-
           <div className="flex items-center gap-4">
-            <Link to="/signup" className="hidden sm:block text-sm font-bold text-primary hover:text-primary-dark transition-colors">
+            {/* Nav links for desktop */}
+            <div className="hidden md:flex items-center gap-10 text-sm font-bold text-text-muted mr-6">
+              <a href="#features" className="hover:text-primary transition-colors">Fonctionnalités</a>
+              <a href="#solutions" className="hover:text-primary transition-colors">Solutions</a>
+              <a href="#pricing" className="hover:text-primary transition-colors">Tarifs</a>
+            </div>
+
+            <Link to="/login" className="hidden sm:block text-sm font-bold text-primary hover:text-primary-dark transition-colors mr-2">
               Connexion
             </Link>
             <Link to="/signup" className="px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl text-sm font-bold shadow-button transition-all">
               Démo Gratuite
             </Link>
+
+            {/* Burger Menu Button */}
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 -mr-2 text-text-muted hover:text-primary transition-colors"
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden bg-white border-b border-border overflow-hidden"
+            >
+              <div className="flex flex-col p-6 gap-6 font-bold text-text-muted">
+                <a href="#features" onClick={() => setMobileMenuOpen(false)} className="hover:text-primary transition-colors">Fonctionnalités</a>
+                <a href="#solutions" onClick={() => setMobileMenuOpen(false)} className="hover:text-primary transition-colors">Solutions</a>
+                <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="hover:text-primary transition-colors">Tarifs</a>
+                <div className="pt-6 border-t border-border flex flex-col gap-4">
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="text-primary hover:text-primary-dark transition-colors">
+                    Connexion
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* --- Hero Section --- */}

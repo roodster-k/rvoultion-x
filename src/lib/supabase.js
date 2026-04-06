@@ -14,15 +14,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // Workaround for NavigatorLockAcquireTimeoutError in some browsers
-    lock: {
-      acquire: async () => {
-        // Return a dummy lock object that "releases" immediately
-        return {
-          id: 'lock-id',
-          release: () => {}
-        };
-      }
-    }
+    detectSessionInUrl: true,
   }
 });

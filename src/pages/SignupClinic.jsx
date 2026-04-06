@@ -25,11 +25,6 @@ export default function SignupClinic() {
     setLoading(true);
 
     try {
-      // Create user via Edge Function which will:
-      // 1. Create Supabase Auth user
-      // 2. Insert into clinics
-      // 3. Insert into users (role: clinic_admin)
-      // 4. Seed basic protocol templates
       const { data, error: functionError } = await supabase.functions.invoke('signup-clinic', {
         body: formData
       });
@@ -39,7 +34,6 @@ export default function SignupClinic() {
       }
       
       if (data.error) {
-         // Si on a des détails (ex: SQL error), on les affiche pour le debug
          const fullError = data.details ? `${data.error} (${data.details})` : data.error;
          throw new Error(fullError);
       }
@@ -52,11 +46,9 @@ export default function SignupClinic() {
 
       if (signInError) {
         console.error('Auto-login failed:', signInError);
-        // On ne bloque pas tout, on montre juste le succès et ils devront se connecter manuellement
         setStep(3);
         setSuccess(true);
       } else {
-        // Succès total : La redirection sera gérée par AuthContext + App.jsx
         setSuccess(true);
         setStep(3);
       }
@@ -91,9 +83,10 @@ export default function SignupClinic() {
           </p>
         </div>
 
+        {/* FIX: Was linking to "/" which loops back to landing. Now correctly points to /login */}
         <div className="relative z-10 flex items-center gap-4 text-sm font-medium text-primary-light">
           Déjà un compte ? 
-          <Link to="/" className="text-white font-bold hover:underline">Se connecter</Link>
+          <Link to="/login" className="text-white font-bold hover:underline">Se connecter</Link>
         </div>
       </div>
 
@@ -133,6 +126,16 @@ export default function SignupClinic() {
                 >
                   Continuer <ArrowRight size={18} />
                 </button>
+              </div>
+
+              {/* FIX: Added mobile-visible link to login (the left panel is hidden on mobile) */}
+              <div className="mt-6 text-center md:hidden">
+                <p className="text-text-muted text-sm">
+                  Déjà un compte ?{' '}
+                  <Link to="/login" className="text-primary font-bold hover:text-primary-dark">
+                    Se connecter
+                  </Link>
+                </p>
               </div>
             </motion.div>
           )}
@@ -202,7 +205,7 @@ export default function SignupClinic() {
                 <br/><strong>Redirection automatique vers votre tableau de bord...</strong>
               </p>
               <div className="flex flex-col gap-3">
-                <Link to="/login" className="w-full bg-primary hover:bg-primary-dark text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-2 shadow-button transition-all">
+                <Link to="/dashboard" className="w-full bg-primary hover:bg-primary-dark text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-2 shadow-button transition-all">
                   Continuer vers le Dashboard
                 </Link>
                 <p className="text-[11px] text-text-muted">Si la redirection ne fonctionne pas, cliquez sur le bouton ci-dessus.</p>

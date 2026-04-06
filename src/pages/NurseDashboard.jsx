@@ -68,11 +68,13 @@ export default function NurseDashboard() {
       {/* Sidebar overlay for mobile */}
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 md:hidden" />}
 
+      {/* FIX: Now passing sidebarOpen prop to Sidebar */}
       <Sidebar 
         activeView={activeView} setActiveView={setActiveView}
         currentPatient={currentPatient}
         setSelectedPatientId={setSelectedPatientId}
         setSidebarOpen={setSidebarOpen}
+        sidebarOpen={sidebarOpen}
       />
 
       {/* Main Content */}
