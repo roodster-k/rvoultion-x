@@ -1,47 +1,61 @@
--- ============================================================
--- POSTOP TRACKER — TEST DATA SEEDING
--- Targeted for clinic_id: d59e1341-fcf7-4298-8d2b-366d73b18d4f (Clinique Churchill)
--- ============================================================
+-- 999_seed_test_data.sql
+-- 
+-- Script de test pour peupler une clinique avec des données réalistes.
+-- 
+-- UTILISATION :
+-- 1. Récupérez votre clinic_id (Table 'clinics' dans Supabase)
+-- 2. Remplacez la valeur de v_clinic_id ci-dessous.
+-- 3. Exécutez le script.
 
 DO $$
 DECLARE
-    v_clinic_id uuid := 'd59e1341-fcf7-4298-8d2b-366d73b18d4f';
-    v_nurse_id uuid;
+    -- REMPLACEZ CET ID PAR VOTRE CLINIC_ID RÉEL
+    v_clinic_id uuid := (SELECT id FROM clinics ORDER BY created_at DESC LIMIT 1);
+    v_surgeon_id uuid := (SELECT id FROM users WHERE clinic_id = v_clinic_id AND role IN ('clinic_admin', 'surgeon') LIMIT 1);
     v_patient_id uuid;
 BEGIN
-    -- 1. Get the first nurse/admin of this clinic
-    SELECT id INTO v_nurse_id FROM users WHERE clinic_id = v_clinic_id LIMIT 1;
-
-    IF v_nurse_id IS NULL THEN
-        RAISE NOTICE 'No user found for this clinic. Please sign up first.';
-        RETURN;
+    -- Vérification
+    IF v_clinic_id IS NULL THEN
+        RAISE EXCEPTION 'Aucune clinique trouvée. Veuillez d''abord créer votre espace via /signup';
     END IF;
 
-    -- 2. Insert 3 Test Patients
-    
-    -- Patient 1: Sophie Martin (Status: normal)
-    INSERT INTO patients (clinic_id, assigned_to, full_name, email, intervention, surgery_date, status, token)
-    VALUES (v_clinic_id, v_nurse_id, 'Sophie Martin', 'sophie.m@example.com', 'Augmentation Mammaire', CURRENT_DATE - INTERVAL '2 days', 'normal', gen_random_uuid())
+    RAISE NOTICE 'Utilisation de la clinique : %', (SELECT name FROM clinics WHERE id = v_clinic_id);
+
+    -- 1. Création d'un patient test (Si non existant)
+    INSERT INTO patients (
+        clinic_id, surgeon_id, full_name, email, phone, whatsapp, 
+        intervention, surgery_date, status, notes
+    ) VALUES (
+        v_clinic_id, v_surgeon_id, 'Sarah Bernard', 'sarah.test@example.com', '+32 475 00 11 22', '+32475001122',
+        'Augmentation Mammaire', CURRENT_DATE - INTERVAL '3 days', 'normal', 'Patient test pour démonstration. Évolution favorable à J+3.'
+    ) 
+    ON CONFLICT (email) DO UPDATE SET full_name = EXCLUDED.full_name
     RETURNING id INTO v_patient_id;
 
-    -- Add some mock tasks for Sophie
-    INSERT INTO tasks (patient_id, clinic_id, label, due_date, done)
+    -- 2. Création de tâches pour ce patient
+    -- On simule des tâches déjà faites et à faire
+    INSERT INTO tasks (patient_id, clinic_id, label, jour_post_op_ref, patient_can_check, done, done_at)
     VALUES 
-    (v_patient_id, v_clinic_id, 'Premier changement de pansement', CURRENT_DATE - INTERVAL '1 day', true),
-    (v_patient_id, v_clinic_id, 'Prise des constantes matin', CURRENT_DATE, false);
+    (v_patient_id, v_clinic_id, 'Premier lever et marche', 1, false, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+    (v_patient_id, v_clinic_id, 'Prise des antalgiques J+1', 1, true, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+    (v_patient_id, v_clinic_id, 'Vérification du pansement', 2, false, true, CURRENT_TIMESTAMP - INTERVAL '1 day'),
+    (v_patient_id, v_clinic_id, 'Douche autorisée (sans mouiller le pansement)', 3, true, false, NULL),
+    (v_patient_id, v_clinic_id, 'Photo de contrôle cicatrice', 3, true, false, NULL),
+    (v_patient_id, v_clinic_id, 'Rendez-vous retrait fils', 7, false, false, NULL)
+    ON CONFLICT DO NOTHING;
 
-    -- Patient 2: Marc Lefebvre (Status: attention)
-    INSERT INTO patients (clinic_id, assigned_to, full_name, email, intervention, surgery_date, status, token)
-    VALUES (v_clinic_id, v_nurse_id, 'Marc Lefebvre', 'marc.l@example.com', 'Rhinoplastie', CURRENT_DATE - INTERVAL '5 days', 'attention', gen_random_uuid())
-    RETURNING id INTO v_patient_id;
+    -- 3. Ajout d'une douleur historique
+    INSERT INTO pain_scores (patient_id, clinic_id, score, jour_post_op)
+    VALUES 
+    (v_patient_id, v_clinic_id, 6, 1),
+    (v_patient_id, v_clinic_id, 4, 2),
+    (v_patient_id, v_clinic_id, 3, 3)
+    ON CONFLICT DO NOTHING;
 
-    -- Add an alert for Marc
-    INSERT INTO alerts (clinic_id, patient_id, type, title, message)
-    VALUES (v_clinic_id, v_patient_id, 'photo', 'Rougeur suspecte', 'Le patient a envoyé une photo montrant une rougeur sur l''arête nasale.');
+    -- 4. Un message de bienvenue
+    INSERT INTO messages (patient_id, clinic_id, sender_type, sender_id, content)
+    VALUES (v_patient_id, v_clinic_id, 'nurse', v_surgeon_id, 'Bonjour Sarah, comment vous sentez-vous aujourd''hui ? N''oubliez pas de nous envoyer la photo de contrôle.')
+    ON CONFLICT DO NOTHING;
 
-    -- Patient 3: Claire Dubois (Status: normal)
-    INSERT INTO patients (clinic_id, assigned_to, full_name, email, intervention, surgery_date, status, token)
-    VALUES (v_clinic_id, v_nurse_id, 'Claire Dubois', 'claire.d@example.com', 'Abdominoplastie', CURRENT_DATE - INTERVAL '10 days', 'normal', gen_random_uuid());
-
-    RAISE NOTICE 'Test data seeded successfully for clinic %', v_clinic_id;
+    RAISE NOTICE 'Données de test générées pour le patient Sarah Bernard (ID: %)', v_patient_id;
 END $$;

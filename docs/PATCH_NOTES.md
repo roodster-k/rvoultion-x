@@ -1,4 +1,4 @@
-# PostOp Tracker — Patch Notes (7 Fixes)
+# PostOp Tracker — Patch Notes (10 Fixes)
 
 ## How to Apply
 Copy each file to the corresponding path in your project, replacing the existing file.
@@ -100,3 +100,22 @@ Some policies caused infinite recursion on the `users` table.
 2. Paste the contents of `007_rls_consolidation.sql`
 3. Click "Run"
 4. Verify the output table shows all `v7_*` policies
+---
+
+## Fix 9: Supreme RLS & Onboarding Fix (CRITICAL)
+**File:** `supabase/migrations/009_supreme_rls_fix.sql`  
+**Problem:** Recursion on the `users` table blocked signups and logins. Clinique admins 
+couldn't create their profile after `auth.signUp()`.
+**Improvements:**
+- Uses `SECURITY DEFINER` helper functions to bypass recursion.
+- Enables safe `INSERT` on `clinics` and `users` during client-side onboarding.
+- Standardizes all filters with the `v9_` prefix.
+
+---
+
+## Fix 10: Daily Reminders Automation (MEDIUM)
+**File:** `supabase/migrations/010_daily_reminders_cron.sql`  
+**Goal:** Automate email reminders for patients with pending tasks.
+**Mechanism:**
+- Configures `pg_cron` to trigger the `daily-reminders` Edge Function at 08:00 AM.
+- Uses `pg_net` for internal HTTP calls within the Supabase ecosystem.
