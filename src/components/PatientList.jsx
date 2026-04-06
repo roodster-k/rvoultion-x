@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, MessageCircle, ArrowUpDown } from 'lucide-react';
+import { Plus, MessageCircle, ArrowUpDown, Phone } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 const SORT_OPTIONS = [
@@ -101,8 +101,13 @@ export default function PatientList({ patients, searchTerm, onAddPatient, onSele
                   <span className="text-[11px] bg-slate-200 text-slate-700 py-0.5 px-2 rounded-md font-semibold tracking-wide">{p.assignedTo}</span>
                 )}
               </div>
-              <div className="text-[13px] text-text-muted">
-                {p.intervention} · <span className="font-semibold">J+{p.jourPostOp}</span> · {p.chirurgien}
+              <div className="text-[13px] text-text-muted flex items-center gap-2 flex-wrap">
+                <span>{p.intervention} · <span className="font-semibold">J+{p.jourPostOp}</span> · {p.chirurgien}</span>
+                {(p.phone || p.whatsapp) && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    <Phone size={10} /> {p.phone || p.whatsapp}
+                  </span>
+                )}
               </div>
             </div>
             {p.messages.some(m => m.from === 'patient' && !m.isRead) && (

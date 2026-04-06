@@ -187,6 +187,11 @@ export function AuthProvider({ children }) {
           return;
         }
 
+        // TOKEN_REFRESHED fires every ~1h — skip re-fetching profile if same user
+        if (event === 'TOKEN_REFRESHED' && currentUserIdRef.current === session?.user?.id) {
+          return;
+        }
+
         if (session?.user) {
           const isNewUser = currentUserIdRef.current !== session.user.id;
           if (isNewUser) {

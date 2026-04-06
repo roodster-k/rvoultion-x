@@ -106,6 +106,31 @@ export default function NurseDashboard() {
           <AnalyticsDashboard onSelectPatient={handleSelectPatient} />
         ) : activeView === 'agenda' && !currentPatient ? (
           <AgendaView onSelectPatient={handleSelectPatient} patients={patients} />
+        ) : activeView === 'patients' && !currentPatient ? (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <header className="flex justify-between items-center mb-6 flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 -ml-2 text-text-muted hover:text-primary transition-colors">
+                  <Menu size={24} />
+                </button>
+                <div>
+                  <h1 className="font-serif text-3xl mb-2 font-bold text-text-dark">Dossiers Patients</h1>
+                  <p className="text-text-muted font-medium text-sm">Recherchez et accédez à tous les dossiers patients de la clinique.</p>
+                </div>
+              </div>
+              <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 min-w-[280px] shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+                <Search size={18} className="text-primary" />
+                <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher par nom, intervention..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" autoFocus />
+              </div>
+            </header>
+            <PatientList
+              patients={getFilteredPatients(searchTerm, 'equipe', user?.name)}
+              searchTerm={searchTerm}
+              onSelectPatient={handleSelectPatient}
+              onAddPatient={() => setIsAddPatientOpen(true)}
+              viewMode="equipe"
+            />
+          </motion.div>
         ) : !currentPatient ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <header className="flex justify-between items-center mb-6 flex-wrap gap-4">

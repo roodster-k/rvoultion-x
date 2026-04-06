@@ -34,7 +34,11 @@ export default function Sidebar({
 
       <div className="flex flex-col gap-1.5 flex-1">
         <NavItem icon={<LayoutDashboard size={20} />} label="Tableau de bord" active={activeView === 'dashboard' && !currentPatient} onClick={() => { setSelectedPatientId(null); setActiveView('dashboard'); setSidebarOpen(false); }} />
-        <NavItem icon={<Users size={20} />} label="Dossiers Patients" active={!!currentPatient} onClick={() => {}} />
+        <NavItem icon={<Users size={20} />} label="Dossiers Patients" active={activeView === 'patients' || !!currentPatient} onClick={() => {
+          setSelectedPatientId(null);
+          setActiveView('patients');
+          setSidebarOpen(false);
+        }} />
         
         <div className="relative">
           <NavItem icon={<Bell size={20} />} label="Centre d'Alertes" active={activeView === 'alerts'} onClick={() => {
@@ -61,13 +65,11 @@ export default function Sidebar({
           setSidebarOpen(false);
         }} />
 
-        {isAdmin && (
-          <NavItem icon={<Settings size={20} />} label="Paramètres Clinique" active={activeView === 'settings'} onClick={() => {
-            setSelectedPatientId(null);
-            setActiveView('settings');
-            setSidebarOpen(false);
-          }} />
-        )}
+        <NavItem icon={<Settings size={20} />} label={isAdmin ? 'Paramètres Clinique' : 'Équipe'} active={activeView === 'settings'} onClick={() => {
+          setSelectedPatientId(null);
+          setActiveView('settings');
+          setSidebarOpen(false);
+        }} />
       </div>
 
       <div className="p-4 rounded-2xl bg-primary-light border border-primary-hover flex items-center gap-3 transition-colors hover:bg-primary-hover mt-4">

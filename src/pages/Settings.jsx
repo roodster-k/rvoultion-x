@@ -23,11 +23,18 @@ export default function Settings() {
   const { profile, clinicSettings, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('clinique');
 
-  if (profile?.role !== 'clinic_admin' && profile?.role !== 'super_admin') {
+  const isAdmin = profile?.role === 'clinic_admin' || profile?.role === 'super_admin';
+
+  // Non-admins can only see the team tab (read-only)
+  if (!isAdmin) {
     return (
-      <div className="p-8 text-center text-text-muted font-medium">
-        Accès refusé. Réservé aux administrateurs de la clinique.
-      </div>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+        <header className="mb-6">
+          <h1 className="font-serif text-3xl mb-2 font-bold text-text-dark">Équipe</h1>
+          <p className="text-text-muted font-medium">Membres de votre clinique.</p>
+        </header>
+        <TeamTab profile={profile} readOnly />
+      </motion.div>
     );
   }
 
@@ -417,7 +424,7 @@ function ProtocolsTab({ profile }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ONGLET ÉQUIPE
 // ─────────────────────────────────────────────────────────────────────────────
-function TeamTab({ profile }) {
+function TeamTab({ profile, readOnly = false }) {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -490,8 +497,8 @@ function TeamTab({ profile }) {
         </div>
       )}
 
-      {/* Formulaire d'invitation */}
-      <div className="bg-white rounded-[16px] border border-border shadow-sm mb-4 overflow-hidden">
+      {/* Formulaire d'invitation — admin only */}
+      {!readOnly && <div className="bg-white rounded-[16px] border border-border shadow-sm mb-4 overflow-hidden">
         <button onClick={() => setInviteOpen(o => !o)}
           className="w-full flex justify-between items-center px-5 py-4 cursor-pointer bg-transparent border-none text-left hover:bg-slate-50 transition-colors">
           <span className="flex items-center gap-2 font-bold text-text-dark">
@@ -538,7 +545,7 @@ function TeamTab({ profile }) {
             </div>
           </form>
         )}
-      </div>
+      </div>}
 
       {/* Liste équipe */}
       {loading ? (
@@ -560,7 +567,7 @@ function TeamTab({ profile }) {
                 <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold ${roleColors[member.role] || 'bg-slate-100 text-slate-600'}`}>
                   {roleLabels[member.role] || member.role}
                 </span>
-                {member.id !== profile.id && (
+                {!readOnly && member.id !== profile.id && (
                   <button onClick={() => handleToggleActive(member.id, member.is_active)}
                     className={`p-2 rounded-lg border-none cursor-pointer transition-colors text-sm font-bold
                       ${member.is_active

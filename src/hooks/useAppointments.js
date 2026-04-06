@@ -78,6 +78,7 @@ export default function useAppointments() {
       .single();
 
     if (error) {
+      console.error('[useAppointments] insert error:', error.code, error.message, error.details);
       setAppointments(prev => prev.filter(a => a.id !== tempId));
       return { error };
     }
@@ -98,6 +99,24 @@ export default function useAppointments() {
       })
       .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
     );
+
+    // Send a system reminder message to the patient
+    try {
+      const dt = new Date(scheduledAt);
+      const dateStr = dt.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      const timeStr = dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+      const reminderText = `📅 Rappel RDV : ${title} — le ${dateStr} à ${timeStr}${location ? ` (${location})` : ''}`;
+      await supabase.from('messages').insert({
+        patient_id: patientId,
+        clinic_id: profile.clinic_id,
+        content: reminderText,
+        sender_type: 'nurse',
+        is_read: false,
+      });
+    } catch (msgErr) {
+      console.warn('[useAppointments] Could not send reminder message:', msgErr);
+    }
+
     return { data };
   }, [profile]);
 
