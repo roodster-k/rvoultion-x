@@ -5,8 +5,8 @@ import { usePatientContext } from '../context/PatientContext';
 import { useAlertContext } from '../context/AlertContext';
 import { statusConfig } from '../data/constants';
 
-export default function AnalyticsDashboard() {
-  const { patients } = usePatientContext();
+export default function AnalyticsDashboard({ onSelectPatient }) {
+  const { patients, getPatientById } = usePatientContext();
   const { alerts } = useAlertContext();
 
   const stats = useMemo(() => {
@@ -218,10 +218,11 @@ export default function AnalyticsDashboard() {
                 const cfg = statusConfig[p.status];
                 const lastPain = p.painScores?.length ? p.painScores[p.painScores.length - 1] : null;
                 return (
-                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-slate-50">
+                  <button key={p.id} onClick={() => onSelectPatient?.(p)}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-border bg-slate-50 w-full text-left hover:bg-primary-light/30 hover:border-primary/30 transition-colors cursor-pointer">
                     <div className="w-2 h-8 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[13px] font-bold text-text-dark truncate">{p.name}</div>
+                      <div className="text-[13px] font-bold text-primary hover:text-primary-dark truncate">{p.name}</div>
                       <div className="text-[11px] text-text-muted font-semibold truncate">
                         {p.intervention} · J+{p.jourPostOp}
                       </div>
@@ -231,13 +232,10 @@ export default function AnalyticsDashboard() {
                         {lastPain.score}/10
                       </div>
                     )}
-                    <span
-                      className="text-[11px] font-bold px-2 py-1 rounded-lg"
-                      style={{ color: cfg.color, background: cfg.bg }}
-                    >
+                    <span className="text-[11px] font-bold px-2 py-1 rounded-lg" style={{ color: cfg.color, background: cfg.bg }}>
                       {cfg.icon}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>

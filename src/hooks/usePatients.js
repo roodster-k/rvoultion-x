@@ -102,7 +102,11 @@ export default function usePatients() {
           score: ps.score,
           jour: ps.jour_post_op,
           notes: ps.notes,
-          timestamp: ps.created_at
+          timestamp: ps.created_at,
+          temperature: ps.temperature ?? null,
+          swellingLevel: ps.swelling_level ?? null,
+          hasFever: ps.has_fever ?? false,
+          otherSymptoms: ps.other_symptoms ?? null,
         });
       });
 
@@ -364,6 +368,7 @@ export default function usePatients() {
     if (error) {
       console.error('[sendMessage] Error:', error);
       fetchPatients();
+      return { error };
     }
   }, [profile, fetchPatients]);
 
@@ -418,7 +423,9 @@ export default function usePatients() {
     if (error) {
       console.error('[addNote] Error:', error);
       fetchPatients();
+      return { error };
     }
+    return { success: true };
   }, [patients, fetchPatients]);
 
   const updatePatientStatus = useCallback(async (patientId, newStatus) => {
@@ -432,6 +439,7 @@ export default function usePatients() {
     if (error) {
       console.error('[updatePatientStatus] Error:', error);
       fetchPatients();
+      return { error };
     }
   }, [fetchPatients]);
 

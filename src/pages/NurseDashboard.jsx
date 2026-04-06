@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Mail, Menu } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -21,10 +21,19 @@ export default function NurseDashboard() {
 
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('mes_patients');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('postop_viewMode') || 'mes_patients');
   const [activeView, setActiveView] = useState('dashboard');
   const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
+
+  // Debounce search
+  const searchDebounceRef = useRef(null);
+  const handleSearchChange = useCallback((value) => {
+    setSearchInput(value);
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setSearchTerm(value), 220);
+  }, []);
 
   const [emailToasts, setEmailToasts] = useState([]);
   const prevAlertCount = useRef(alerts.length);
@@ -46,11 +55,17 @@ export default function NurseDashboard() {
     prevAlertCount.current = alerts.length;
   }, [alerts]);
 
+  // Persist view mode
+  const handleSetViewMode = useCallback((mode) => {
+    setViewMode(mode);
+    localStorage.setItem('postop_viewMode', mode);
+  }, []);
+
   const handleSelectPatient = (p) => {
     setSelectedPatientId(p.id);
     setActiveView('dashboard');
-    setSearchTerm('');
     setSidebarOpen(false);
+    // Don't clear search — user can return to filtered list
   };
 
   return (
@@ -88,7 +103,7 @@ export default function NurseDashboard() {
         ) : activeView === 'alerts' && !currentPatient ? (
           <AlertCenter onSelectPatient={handleSelectPatient} />
         ) : activeView === 'analytics' && !currentPatient ? (
-          <AnalyticsDashboard />
+          <AnalyticsDashboard onSelectPatient={handleSelectPatient} />
         ) : activeView === 'agenda' && !currentPatient ? (
           <AgendaView onSelectPatient={handleSelectPatient} patients={patients} />
         ) : !currentPatient ? (
@@ -108,12 +123,12 @@ export default function NurseDashboard() {
               </div>
               <div className="flex gap-2.5 items-center flex-wrap">
                 <div className="flex bg-slate-200 rounded-xl p-1 shadow-inner">
-                  <button onClick={() => setViewMode('mes_patients')} className={`py-2 px-3.5 rounded-lg border-none font-bold text-[13px] cursor-pointer transition-all ${viewMode === 'mes_patients' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-text-muted hover:text-text-dark'}`}>Mes Patients</button>
-                  <button onClick={() => setViewMode('equipe')} className={`py-2 px-3.5 rounded-lg border-none font-bold text-[13px] cursor-pointer transition-all ${viewMode === 'equipe' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-text-muted hover:text-text-dark'}`}>Vue Équipe</button>
+                  <button onClick={() => handleSetViewMode('mes_patients')} className={`py-2 px-3.5 rounded-lg border-none font-bold text-[13px] cursor-pointer transition-all ${viewMode === 'mes_patients' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-text-muted hover:text-text-dark'}`}>Mes Patients</button>
+                  <button onClick={() => handleSetViewMode('equipe')} className={`py-2 px-3.5 rounded-lg border-none font-bold text-[13px] cursor-pointer transition-all ${viewMode === 'equipe' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-text-muted hover:text-text-dark'}`}>Vue Équipe</button>
                 </div>
                 <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 min-w-[240px] shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
                   <Search size={18} className="text-primary" />
-                  <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Rechercher patient..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" />
+                  <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher patient..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" />
                 </div>
               </div>
             </header>

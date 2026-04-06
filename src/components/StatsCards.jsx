@@ -23,29 +23,46 @@ export default function StatsCards({ stats, onSelectPatient }) {
                 {a.patientId && (
                   <button onClick={() => {
                     const p = patients.find(pat => pat.id === a.patientId);
-                    if(p) onSelectPatient(p);
-                  }} className="bg-primary hover:bg-primary-dark text-white border-none cursor-pointer text-xs py-1.5 px-3 rounded-lg font-bold whitespace-nowrap transition-colors shadow-sm">Voir</button>
+                    if (p) onSelectPatient(p);
+                  }} className="bg-primary hover:bg-primary-dark text-white border-none cursor-pointer text-xs py-1.5 px-3 rounded-lg font-bold whitespace-nowrap transition-colors shadow-sm">
+                    Voir
+                  </button>
                 )}
               </div>
             ))}
+            {priorityAlerts.length > 5 && (
+              <p className="text-[12px] text-red-600 font-semibold text-center mt-1">
+                + {priorityAlerts.length - 5} autres alertes — voir le Centre d'alertes
+              </p>
+            )}
           </div>
         </div>
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4 mb-8">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 mb-8">
         <div className="bg-primary-light rounded-[20px] p-6 shadow-card hover:shadow-card-hover transition-shadow border border-primary/10">
           <div className="text-4xl font-extrabold text-primary">{stats.total}</div>
           <div className="text-sm text-primary font-bold mt-1 tracking-wide">Patients suivis</div>
         </div>
-        <div className="bg-status-attention-bg rounded-[20px] p-6 shadow-card hover:shadow-card-hover transition-shadow border border-amber-200">
-          <div className="text-4xl font-extrabold text-status-attention">{stats.complication + stats.attention}</div>
-          <div className="text-sm text-status-attention font-bold mt-1 tracking-wide">Action requise</div>
+
+        {/* Complications (critical) */}
+        <div className="bg-status-complication-bg rounded-[20px] p-6 shadow-card hover:shadow-card-hover transition-shadow border border-red-200">
+          <div className="text-4xl font-extrabold text-status-complication">{stats.complication}</div>
+          <div className="text-sm text-status-complication font-bold mt-1 tracking-wide">Complications</div>
         </div>
+
+        {/* Attention (watch) */}
+        <div className="bg-status-attention-bg rounded-[20px] p-6 shadow-card hover:shadow-card-hover transition-shadow border border-amber-200">
+          <div className="text-4xl font-extrabold text-status-attention">{stats.attention}</div>
+          <div className="text-sm text-status-attention font-bold mt-1 tracking-wide">Sous surveillance</div>
+        </div>
+
         <div className="bg-emerald-50 rounded-[20px] p-6 shadow-card hover:shadow-card-hover transition-shadow border border-emerald-200">
           <div className="text-4xl font-extrabold text-status-normal">{stats.complianceRate}%</div>
-          <div className="text-sm text-status-normal font-bold mt-1 tracking-wide">Compliance globale</div>
+          <div className="text-sm text-status-normal font-bold mt-1 tracking-wide">Compliance protocole</div>
         </div>
+
         <div className="bg-blue-50 rounded-[20px] p-6 shadow-card hover:shadow-card-hover transition-shadow border border-blue-200">
           <div className="text-4xl font-extrabold text-blue-600">{alerts.length}</div>
           <div className="text-sm text-blue-600 font-bold mt-1 tracking-wide">Notifs non lues</div>

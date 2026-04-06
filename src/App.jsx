@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import SignupClinic from './pages/SignupClinic.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import { useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 
 function ConnectionErrorScreen() {
   return (
@@ -52,6 +53,7 @@ function App() {
   // BrowserRouter is always mounted so useNavigate() remains valid
   // even when SignupClinic or LoginPage is temporarily unmounted during auth loading.
   return (
+    <ToastProvider>
     <BrowserRouter>
       {loading ? (
         <LoadingScreen />
@@ -90,6 +92,7 @@ function App() {
         </Routes>
       )}
     </BrowserRouter>
+    </ToastProvider>
   );
 }
 

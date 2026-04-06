@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAlertContext } from '../context/AlertContext';
+import { useToast } from '../context/ToastContext';
 import { statusConfig } from '../data/constants';
 import PainChart from './PainChart';
 import useAppointments from '../hooks/useAppointments';
@@ -11,6 +12,7 @@ import { supabase } from '../lib/supabase';
 
 export default function PatientDetail({ currentPatient, onBack }) {
   const { toggleTask, addNote, addCustomTask, sendMessage, updatePatientStatus, invitePatient } = useData();
+  const { toast } = useToast();
   const { clearPatientAlerts } = useAlertContext();
 
   const [activeTab, setActiveTab] = useState('checklist');
@@ -23,6 +25,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const [inviteMsg, setInviteMsg] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]); // max 2 photo ids
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   // ─── Appointments ───
   const { getPatientAppointments, addAppointment, toggleAppointment, deleteAppointment } = useAppointments();
@@ -36,14 +39,19 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const handleAddAppt = async () => {
     if (!apptTitle.trim() || !apptDate) return;
     setApptSaving(true);
-    await addAppointment({
+    const result = await addAppointment({
       patientId: currentPatient.id,
       title: apptTitle.trim(),
       scheduledAt: new Date(`${apptDate}T${apptTime || '09:00'}`).toISOString(),
       location: apptLocation.trim() || null,
     });
-    setApptTitle(''); setApptDate(''); setApptTime(''); setApptLocation('');
     setApptSaving(false);
+    if (result?.error) {
+      toast('Erreur lors de la planification du RDV.', 'error');
+    } else {
+      setApptTitle(''); setApptDate(''); setApptTime(''); setApptLocation('');
+      toast('Rendez-vous planifié.', 'success');
+    }
   };
 
   // ─── Messages: auto-scroll + mark-as-read ───
@@ -259,11 +267,18 @@ export default function PatientDetail({ currentPatient, onBack }) {
 
           {/* Notes cliniques chronologiques */}
           <div className="flex-1 min-w-[250px] bg-slate-50 p-4 rounded-xl border border-border">
-            <div className="text-[11px] text-text-muted font-bold uppercase tracking-wide mb-2">Notes cliniques</div>
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-[11px] text-text-muted font-bold uppercase tracking-wide">Notes cliniques</div>
+              {notes.length > 3 && (
+                <button onClick={() => setNotesExpanded(e => !e)} className="text-[11px] font-bold text-primary hover:text-primary-dark transition-colors">
+                  {notesExpanded ? '▲ Réduire' : `▼ Voir tout (${notes.length})`}
+                </button>
+              )}
+            </div>
             {notes.length === 0 ? (
               <p className="text-sm text-text-muted italic mb-2.5">Aucune observation enregistrée.</p>
             ) : (
-              <div className="max-h-[140px] overflow-y-auto flex flex-col gap-2 mb-2.5 pr-1">
+              <div className={`flex flex-col gap-2 mb-2.5 pr-1 ${notesExpanded ? '' : 'max-h-[160px] overflow-y-auto'}`}>
                 {notes.map((n, i) => (
                   <div key={i} className="bg-white p-2.5 rounded-lg border border-border shadow-sm">
                     <p className="text-sm text-text-dark font-medium leading-relaxed">{n.text}</p>
@@ -374,6 +389,54 @@ export default function PatientDetail({ currentPatient, onBack }) {
             <h3 className="text-[17px] mb-2 font-bold text-text-dark">Évolution de la douleur</h3>
             <p className="text-sm text-text-muted mb-5">Scores déclarés par le patient au fil des jours post-opératoires.</p>
             <PainChart painScores={currentPatient.painScores} height={180} intervention={currentPatient.intervention} />
+
+            {/* Vitals table — only if at least one entry has temperature or swelling */}
+            {currentPatient.painScores?.some(ps => ps.temperature !== null || ps.swellingLevel !== null) && (
+              <div className="mt-6">
+                <h4 className="text-[13px] font-bold text-text-dark mb-3">Constantes & symptômes déclarés</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px] border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50">
+                        {['Jour', 'Douleur', 'Température', 'Œdème', 'Fièvre', 'Autres symptômes'].map(h => (
+                          <th key={h} className="py-2 px-3 text-left font-bold text-text-muted border-b border-border">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...currentPatient.painScores]
+                        .sort((a, b) => a.jour - b.jour)
+                        .map((ps, i) => {
+                          const swellingLabels = ['Aucun', 'Léger', 'Modéré', 'Important'];
+                          const tempColor = ps.temperature >= 38 ? 'text-red-600 font-bold' : 'text-text-dark';
+                          return (
+                            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                              <td className="py-2 px-3 font-bold text-text-dark">J+{ps.jour}</td>
+                              <td className="py-2 px-3">
+                                <span className={`font-bold ${ps.score >= 7 ? 'text-red-500' : ps.score >= 4 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                  {ps.score}/10
+                                </span>
+                              </td>
+                              <td className={`py-2 px-3 ${tempColor}`}>
+                                {ps.temperature != null ? `${ps.temperature}°C` : '—'}
+                              </td>
+                              <td className="py-2 px-3 text-text-muted">
+                                {ps.swellingLevel != null ? swellingLabels[ps.swellingLevel] ?? '—' : '—'}
+                              </td>
+                              <td className="py-2 px-3">
+                                {ps.hasFever ? <span className="text-red-600 font-bold">Oui</span> : <span className="text-text-muted">Non</span>}
+                              </td>
+                              <td className="py-2 px-3 text-text-muted max-w-[180px] truncate" title={ps.otherSymptoms}>
+                                {ps.otherSymptoms || '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -639,25 +702,30 @@ function PrintReport({ patient }) {
           <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
-                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Jour</th>
-                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Score</th>
-                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Notes</th>
-                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Date</th>
+                {['Jour', 'Score', 'Température', 'Œdème', 'Notes'].map(h => (
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {[...patient.painScores].sort((a, b) => a.jour - b.jour).map((ps, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '5px 8px', fontWeight: 600 }}>J+{ps.jour}</td>
-                  <td style={{ padding: '5px 8px', fontWeight: 800, color: ps.score >= 7 ? '#ef4444' : ps.score >= 4 ? '#f59e0b' : '#10b981' }}>
-                    {ps.score}/10
-                  </td>
-                  <td style={{ padding: '5px 8px', color: '#64748b' }}>{ps.notes || '—'}</td>
-                  <td style={{ padding: '5px 8px', color: '#94a3b8', fontSize: 11 }}>
-                    {ps.timestamp ? new Date(ps.timestamp).toLocaleDateString('fr-BE') : ''}
-                  </td>
-                </tr>
-              ))}
+              {[...patient.painScores].sort((a, b) => a.jour - b.jour).map((ps, i) => {
+                const swellingLabels = ['Aucun', 'Léger', 'Modéré', 'Important'];
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '5px 8px', fontWeight: 600 }}>J+{ps.jour}</td>
+                    <td style={{ padding: '5px 8px', fontWeight: 800, color: ps.score >= 7 ? '#ef4444' : ps.score >= 4 ? '#f59e0b' : '#10b981' }}>
+                      {ps.score}/10
+                    </td>
+                    <td style={{ padding: '5px 8px', color: ps.temperature >= 38 ? '#ef4444' : '#64748b', fontWeight: ps.temperature >= 38 ? 700 : 400 }}>
+                      {ps.temperature != null ? `${ps.temperature}°C` : '—'}
+                    </td>
+                    <td style={{ padding: '5px 8px', color: '#64748b' }}>
+                      {ps.swellingLevel != null ? swellingLabels[ps.swellingLevel] ?? '—' : '—'}
+                    </td>
+                    <td style={{ padding: '5px 8px', color: '#64748b' }}>{ps.notes || ps.otherSymptoms || '—'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

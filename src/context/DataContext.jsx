@@ -14,6 +14,7 @@ import { createContext, useContext, useCallback } from 'react';
 import { usePatientContext } from './PatientContext';
 import { useAlertContext } from './AlertContext';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 
 const DataContext = createContext();
 
@@ -21,6 +22,7 @@ export function DataProvider({ children }) {
   const patientCtx = usePatientContext();
   const alertCtx = useAlertContext();
   const { profile } = useAuth();
+  const { toast } = useToast();
 
   // Bridge: toggleTask with alert side-effect (patient action notification)
   const toggleTask = useCallback((patientId, taskId, isPatientAction = false) => {
@@ -39,41 +41,58 @@ export function DataProvider({ children }) {
   }, [patientCtx, alertCtx]);
 
   // Bridge: sendMessage with alert side-effect
-  const sendMessage = useCallback((patientId, text, sender = 'nurse') => {
+  const sendMessage = useCallback(async (patientId, text, sender = 'nurse') => {
     if (sender === 'patient') {
       const patient = patientCtx.getPatientById(patientId);
-      if (patient) {
-        alertCtx.pushMessageAlert(patient.name, patientId);
-      }
+      if (patient) alertCtx.pushMessageAlert(patient.name, patientId);
     }
-    patientCtx.sendMessage(patientId, text, sender);
-  }, [patientCtx, alertCtx]);
+    const result = await patientCtx.sendMessage(patientId, text, sender);
+    if (result?.error) toast('Erreur lors de l\'envoi du message.', 'error');
+  }, [patientCtx, alertCtx, toast]);
 
   // Bridge: addPhoto with alert side-effect
   const addPhoto = useCallback((patientId, photoLabel) => {
     const patient = patientCtx.getPatientById(patientId);
-    if (patient) {
-      alertCtx.pushPhotoAlert(patient.name, patientId);
-    }
+    if (patient) alertCtx.pushPhotoAlert(patient.name, patientId);
     patientCtx.addPhoto(patientId, photoLabel);
   }, [patientCtx, alertCtx]);
 
   // Bridge: addNote with author name from current profile
-  const addNote = useCallback((patientId, noteText) => {
-    patientCtx.addNote(patientId, noteText, profile?.full_name || 'Équipe');
-  }, [patientCtx, profile]);
+  const addNote = useCallback(async (patientId, noteText) => {
+    const result = await patientCtx.addNote(patientId, noteText, profile?.full_name || 'Équipe');
+    if (result?.error) toast('Erreur lors de l\'ajout de la note.', 'error');
+    else toast('Note ajoutée.', 'success');
+  }, [patientCtx, profile, toast]);
+
+  // Bridge: updatePatientStatus with toast
+  const updatePatientStatus = useCallback(async (patientId, newStatus) => {
+    const result = await patientCtx.updatePatientStatus(patientId, newStatus);
+    if (result?.error) toast('Erreur lors de la mise à jour du statut.', 'error');
+  }, [patientCtx, toast]);
+
+  // Bridge: toggleTask with toast on error
+  const toggleTaskWithToast = useCallback(async (patientId, taskId, isPatientAction = false) => {
+    const patient = patientCtx.getPatientById(patientId);
+    if (!patient) return;
+    const task = patient.checklist.find(c => c.id === taskId);
+    if (!task) return;
+    const willBeDone = !task.done;
+    const result = await patientCtx.toggleTask(patientId, taskId);
+    if (result?.error) toast('Erreur lors de la mise à jour de la tâche.', 'error');
+    if (isPatientAction && willBeDone) alertCtx.pushTaskAlert(patient.name, task.label, patientId);
+  }, [patientCtx, alertCtx, toast]);
 
   return (
     <DataContext.Provider value={{
       // Patient data
       patients: patientCtx.patients,
-      toggleTask,
+      toggleTask: toggleTaskWithToast,
       addCustomTask: patientCtx.addCustomTask,
       sendMessage,
       addPhoto,
       addNote,
       addPatient: patientCtx.addPatient,
-      updatePatientStatus: patientCtx.updatePatientStatus,
+      updatePatientStatus,
       invitePatient: patientCtx.invitePatient,
       // Alert data
       alerts: alertCtx.alerts,
