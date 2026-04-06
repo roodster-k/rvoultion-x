@@ -1,20 +1,29 @@
-import { createContext, useContext } from 'react';
+import { useContext, useMemo } from 'react';
+import PatientContext from './PatientContextDefinition';
 import usePatientHook from '../hooks/usePatients';
-
-const PatientContext = createContext();
 
 export function PatientProvider({ children }) {
   const patientState = usePatientHook();
+  
+  const value = useMemo(() => patientState, [
+    patientState.patients, 
+    patientState.loading,
+    patientState.refetch
+  ]);
 
   return (
-    <PatientContext.Provider value={patientState}>
+    <PatientContext.Provider value={value || {}}>
       {children}
     </PatientContext.Provider>
   );
 }
 
-export const usePatientContext = () => {
+export function usePatientContext() {
   const ctx = useContext(PatientContext);
-  if (!ctx) throw new Error('usePatientContext must be used within <PatientProvider>');
+  if (!ctx || Object.keys(ctx).length === 0) {
+    if (!ctx) throw new Error('usePatientContext must be used within <PatientProvider>');
+  }
   return ctx;
-};
+}
+
+export { PatientContext };

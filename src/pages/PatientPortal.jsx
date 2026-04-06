@@ -8,10 +8,18 @@ import { useData } from '../context/DataContext';
 
 export default function PatientPortal() {
   const { token } = useParams();
-  const { patients, loading } = usePatientContext();
-  const { toggleTask, addPhoto, sendMessage } = useData();
+  const { 
+    patients, loading, fetchSinglePatientByToken, 
+    toggleTask, addPhoto, sendMessage 
+  } = usePatientContext();
 
   const patient = patients.find(p => p.token === token);
+
+  useEffect(() => {
+    if (!patient && token && !loading) {
+      fetchSinglePatientByToken(token);
+    }
+  }, [token, patient, loading, fetchSinglePatientByToken]);
   const [activeTab, setActiveTab] = useState('tasks');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);

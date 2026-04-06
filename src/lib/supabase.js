@@ -9,4 +9,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    // Workaround for NavigatorLockAcquireTimeoutError in some browsers
+    lock: {
+      acquire: async () => {
+        // Return a dummy lock object that "releases" immediately
+        return {
+          id: 'lock-id',
+          release: () => {}
+        };
+      }
+    }
+  }
+});

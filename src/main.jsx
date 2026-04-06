@@ -15,15 +15,13 @@ import './styles/global.css';
  *   DataProvider     → backward-compatible bridge (will be removed once all consumers migrate)
  */
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <AuthProvider>
-      <PatientProvider>
-        <AlertProvider>
-          <DataProvider>
-            <App />
-          </DataProvider>
-        </AlertProvider>
-      </PatientProvider>
-    </AuthProvider>
-  </React.StrictMode>
+  <AuthProvider>
+    <PatientProvider>
+      <AlertProvider>
+        <DataProvider>
+          <App />
+        </DataProvider>
+      </AlertProvider>
+    </PatientProvider>
+  </AuthProvider>
 );

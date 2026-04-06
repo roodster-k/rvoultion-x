@@ -47,12 +47,8 @@ function LoadingScreen() {
 }
 
 function App() {
-  const { user, isStaff, isPatient, loading, supabaseHealth } = useAuth();
+  const { user, isStaff, isPatient, loading } = useAuth();
 
-  // 1. Show health error screen if DB is unreachable
-  if (supabaseHealth === 'error') return <ConnectionErrorScreen />;
-
-  // 2. Show loading screen while Supabase restores session
   if (loading) return <LoadingScreen />;
 
   return (

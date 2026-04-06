@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,19 +12,20 @@ import { useAuth } from '../context/AuthContext';
 export default function usePatients() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { profile, authUser } = useAuth(); // profile contient clinic_id et role
+  const { profile, authUser } = useAuth();
+  const isFetching = useRef(false);
 
   // ==========================================
   // FETCH — Reconstruct the full patient shape
   // ==========================================
   const fetchPatients = useCallback(async () => {
-    // Si l'utilisateur n'a pas de profil staff, on ne charge rien (le portail charge ses propres données)
-    if (!profile?.clinic_id) {
-      setLoading(false);
+    if (!profile?.clinic_id || isFetching.current) {
+      if (!profile?.clinic_id) setLoading(false);
       return;
     }
 
     try {
+      isFetching.current = true;
       setLoading(true);
       
       const [patientsRes, tasksRes, messagesRes, photosRes, usersRes, painRes] = await Promise.all([
@@ -124,9 +125,78 @@ export default function usePatients() {
     } catch (err) {
       console.error('[usePatients] Fetch error:', err);
     } finally {
+      isFetching.current = false;
       setLoading(false);
     }
   }, [profile]);
+
+  // NEW: Fetch single patient by token for legacy portal (Bug 7)
+  const fetchSinglePatientByToken = useCallback(async (token) => {
+    try {
+      setLoading(true);
+      const { data: patient, error } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('token', token)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!patient) return null;
+
+      const [tasksRes, messagesRes, photosRes, painRes] = await Promise.all([
+        supabase.from('tasks').select('*').eq('patient_id', patient.id).order('sort_order', { ascending: true }),
+        supabase.from('messages').select('*').eq('patient_id', patient.id).order('created_at', { ascending: true }),
+        supabase.from('photos').select('*').eq('patient_id', patient.id).order('created_at', { ascending: true }),
+        supabase.from('pain_scores').select('*').eq('patient_id', patient.id).order('jour_post_op', { ascending: true }),
+      ]);
+
+      const today = new Date();
+      const dateOp = new Date(patient.surgery_date);
+      let currentJourPostOp = Math.floor((today - dateOp) / (1000 * 60 * 60 * 24));
+      if (currentJourPostOp < 0) currentJourPostOp = 0;
+
+      const fullPatient = {
+        id: patient.id,
+        name: patient.full_name,
+        intervention: patient.intervention,
+        date: patient.surgery_date,
+        jourPostOp: currentJourPostOp,
+        status: patient.status,
+        token: patient.token,
+        clinic_id: patient.clinic_id,
+        checklist: (tasksRes.data || []).map(t => ({
+          id: t.id,
+          label: t.label,
+          done: t.done,
+          jour: t.jour_post_op_ref != null ? `J+${t.jour_post_op_ref}` : 'Spécial',
+          patientCanCheck: t.patient_can_check
+        })),
+        messages: (messagesRes.data || []).map(m => ({
+          from: m.sender_type,
+          text: m.content,
+          timestamp: m.created_at
+        })),
+        photos: (photosRes.data || []).map(p => ({
+          jour: p.jour_post_op,
+          label: p.label,
+          storage_path: p.storage_path
+        })),
+        painScores: (painRes.data || []).map(ps => ({
+          score: ps.score,
+          jour: ps.jour_post_op,
+          timestamp: ps.created_at
+        }))
+      };
+
+      setPatients([fullPatient]);
+      return fullPatient;
+    } catch (err) {
+      console.error('[usePatients] fetchSingle error:', err);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Initial fetch when profile loads
   useEffect(() => {
@@ -255,19 +325,19 @@ export default function usePatients() {
     ));
 
     // Note: since this is simulated in nurse view (no actual file), we just create the DB record
-    // In PatientPortalAuth, it does actual storage upload
     const { error } = await supabase.from('photos').insert({
       patient_id: patientId,
       clinic_id: profile.clinic_id,
       label: photoLabel,
       jour_post_op: jour,
-      storage_path: 'simulated/path.jpg', // Dummy path since UI just displays rectangles for now
+      storage_path: null, // Removed hardcoded 'simulated/path.jpg'
       uploaded_by: 'nurse',
       uploader_id: profile.id
     });
 
     if (error) {
       console.error('[addPhoto] Error:', error);
+      alert("Erreur lors de l'ajout de la photo.");
       fetchPatients();
     }
   }, [patients, profile, fetchPatients]);
@@ -386,27 +456,25 @@ export default function usePatients() {
       return;
     }
 
-    // Retrieve matching protocol template
-    // Split interventions by comma if multiple were selecting, just take the first one or match any
-    const primaryIntervention = newPatient.intervention.split(',')[0].trim();
-    
-    // We look for a template matching the exact intervention string
-    const { data: templates } = await supabase
+    // Better Template Matching (Bug 11)
+    const { data: allTemplates } = await supabase
       .from('protocol_templates')
-      .select('id, tasks')
-      .or(`clinic_id.eq.${profile.clinic_id},is_global.eq.true`)
-      .ilike('intervention_type', `%${primaryIntervention}%`)
-      .limit(1);
+      .select('id, intervention_type, tasks')
+      .or(`clinic_id.eq.${profile.clinic_id},is_global.eq.true`);
+    
+    // Fuzzy matching on the client: check if any template name is contained in the selected intervention, or vice-versa
+    const inputInterv = newPatient.intervention.toLowerCase();
+    const matchedTemplate = (allTemplates || []).find(t => {
+      const templateInterv = t.intervention_type.toLowerCase();
+      return inputInterv.includes(templateInterv) || templateInterv.includes(inputInterv);
+    });
 
     let tasksToInsert = [];
-
-    if (templates && templates.length > 0 && Array.isArray(templates[0].tasks)) {
-      // Dynamic generation based on template
-      const template = templates[0];
+    if (matchedTemplate?.tasks) {
+      const template = matchedTemplate;
       const surgeryDate = new Date(surgeryDateStr);
       
       tasksToInsert = template.tasks.map((taskTemplate, index) => {
-        // Calculate due date based on surgery date + jour_post_op_ref
         let dueDate = null;
         if (taskTemplate.jour_post_op_ref != null) {
           const d = new Date(surgeryDate);
@@ -456,6 +524,7 @@ export default function usePatients() {
       const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
       if (tasksError) {
         console.error('[addPatient] Error inserting tasks:', tasksError);
+        alert("Erreur lors de la création des tâches du protocole.");
       }
     }
 
@@ -525,5 +594,6 @@ export default function usePatients() {
     getFilteredPatients,
     getStats,
     refetch: fetchPatients,
+    fetchSinglePatientByToken,
   };
 }

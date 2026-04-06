@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
@@ -26,13 +26,13 @@ export function AuthProvider({ children }) {
   const [clinicSettings, setClinicSettings] = useState(null); // Table clinics row
   const [loading, setLoading] = useState(true);
 
+  const isFetchingProfile = useRef(false);
+
   // ─── Fetch profile from `users` table (staff) or `patients` table (patient) ───
   const fetchProfile = useCallback(async (authUser) => {
-    if (!authUser) {
-      setProfile(null);
-      setPatientRecord(null);
-      return;
-    }
+    if (!authUser || isFetchingProfile.current) return;
+    isFetchingProfile.current = true;
+    console.log('[Auth] fetchProfile starting for:', authUser.email);
 
     try {
       // 1. Try staff profile first
@@ -99,66 +99,64 @@ export function AuthProvider({ children }) {
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
+    } finally {
+      isFetchingProfile.current = false;
     }
   }, []);
 
   // ─── Initialize: restore session + listen for changes ───
-  const [supabaseHealth, setSupabaseHealth] = useState('checking'); // 'checking', 'ok', 'error'
+
 
   useEffect(() => {
     let mounted = true;
 
-    // 0. Check Supabase Health (Verifie juste que l'URL et les clés sont valides)
-    const checkHealth = async () => {
-      try {
-        // On tente une lecture minimale. Si on reçoit une erreur de permission (42501), 
-        // c'est que la connexion est OK mais que le RLS bloque (ce qui est normal pour anon).
-        const { error } = await supabase.from('clinics').select('id').limit(1);
-        
-        if (!error || error.code === '42501' || error.code === 'PGRST301') {
-           setSupabaseHealth('ok');
-        } else {
-           console.error('[Supabase] Connection error:', error);
-           setSupabaseHealth('error');
+    // ─── Unified Initialization (Lighter version) ───
+    const setupListener = async () => {
+      // Cleanup hook logic if needed, but the main work is the subscription
+      console.log('[Auth] Setting up Auth listener (no manual getSession)...');
+      
+      // Safety net: release the loading screen if we don't get an INITIAL_SESSION within 5s
+      const timer = setTimeout(() => {
+        if (mounted) {
+          console.log('[Auth] Initialization safety timeout triggered.');
+          setLoading(false);
         }
-      } catch (e) {
-        console.error('[Supabase] Unexpected health check crash:', e);
-        setSupabaseHealth('error');
-      }
+      }, 5000);
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!mounted) return;
+          console.log('[Auth] onAuthStateChange:', event, 'user:', !!session?.user);
+
+          if (session?.user) {
+            setUser(session.user);
+            await fetchProfile(session.user);
+          } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+            setUser(null);
+            setProfile(null);
+          }
+
+          if (mounted) {
+            setLoading(false);
+            clearTimeout(timer);
+          }
+        }
+      );
+
+      return subscription;
     };
 
-    checkHealth();
-
-    // 1. Check existing session
-// ... [rest of the file]
-
-    // 2. Listen for auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-
-        if (session?.user) {
-          setUser(session.user);
-          // Re-fetch profile on login, token refresh, or user update
-          if (['SIGNED_IN', 'TOKEN_REFRESHED', 'USER_UPDATED'].includes(event)) {
-            await fetchProfile(session.user);
-          }
-        } else {
-          setUser(null);
-          setProfile(null);
-          setPatientRecord(null);
-        }
-      }
-    );
+    let sub;
+    setupListener().then(s => sub = s);
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (sub) sub.unsubscribe();
     };
   }, [fetchProfile]);
 
   // ─── Login: email/password (soignants) ───
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -167,17 +165,17 @@ export function AuthProvider({ children }) {
 
     // Profile will be fetched by onAuthStateChange → SIGNED_IN
     return data;
-  };
+  }, []);
 
   // ─── Logout ───
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setPatientRecord(null);
     setClinicSettings(null);
     document.documentElement.style.removeProperty('--primary');
-  };
+  }, []);
 
   // ─── Refresh profile (useful after profile updates) ───
   const refreshProfile = useCallback(async () => {
@@ -209,27 +207,29 @@ export function AuthProvider({ children }) {
     clinicId: patientRecord.clinic_id,
   } : null;
 
+  const value = useMemo(() => ({
+    // Core auth
+    user: enrichedUser,
+    authUser: user,       // Raw Supabase Auth user (for edge cases)
+    profile,              // Full staff profile from `users` table
+    patientRecord,        // Full patient record if authenticated as patient
+    clinicSettings,       // Brand settings from `clinics` table
+
+    // Role detection
+    isStaff,
+    isPatient,
+    
+    // State
+    loading,
+
+    // Actions
+    login,
+    logout,
+    refreshProfile,
+  }), [enrichedUser, user, profile, patientRecord, clinicSettings, isStaff, isPatient, loading, login, logout, refreshProfile]);
+
   return (
-    <AuthContext.Provider value={{
-      // Core auth
-      user: enrichedUser,
-      authUser: user,       // Raw Supabase Auth user (for edge cases)
-      profile,              // Full staff profile from `users` table
-      patientRecord,        // Full patient record if authenticated as patient
-      clinicSettings,       // Brand settings from `clinics` table
-
-      // Role detection
-      isStaff,
-      isPatient,
-      
-      // State
-      loading,
-
-      // Actions
-      login,
-      logout,
-      refreshProfile,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -32,6 +32,11 @@
   /* Border */
   --color-border: #e2e8f0;
 
+  /* Border Radii */
+  --radius-xl: 14px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
+
   /* Fonts */
   --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
   --font-serif: "Playfair Display", Georgia, serif;

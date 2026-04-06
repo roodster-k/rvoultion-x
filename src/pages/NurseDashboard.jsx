@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Mail } from 'lucide-react';
+import { Search, Mail, Menu } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import StatsCards from '../components/StatsCards';
 import PatientList from '../components/PatientList';
@@ -83,12 +83,19 @@ export default function NurseDashboard() {
         ) : activeView === 'alerts' && !currentPatient ? (
           <AlertCenter onSelectPatient={handleSelectPatient} />
         ) : !currentPatient ? (
-          /* DASHBOARD VIEW */
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <header className="flex justify-between items-center mb-6 flex-wrap gap-4">
-              <div>
-                <h1 className="font-serif text-3xl mb-2 font-bold text-text-dark">Tableau de bord</h1>
-                <p className="text-text-muted font-medium">Bienvenue {user?.name?.split(' ')[0] || ''}. Voici vos priorités.</p>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setSidebarOpen(true)}
+                  className="md:hidden p-2 -ml-2 text-text-muted hover:text-primary transition-colors"
+                >
+                  <Menu size={24} />
+                </button>
+                <div>
+                  <h1 className="font-serif text-3xl mb-2 font-bold text-text-dark">Tableau de bord</h1>
+                  <p className="text-text-muted font-medium text-sm">Bienvenue {user?.name?.split(' ')[0] || ''}. Voici vos priorités.</p>
+                </div>
               </div>
               <div className="flex gap-2.5 items-center flex-wrap">
                 <div className="flex bg-slate-200 rounded-xl p-1 shadow-inner">

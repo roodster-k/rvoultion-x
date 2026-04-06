@@ -646,38 +646,49 @@ function TaskChecker({ task, onToggle, disabled = false }) {
 
 // ─── Helper: Compress image before upload ───
 async function compressImage(file, maxBytes, quality) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const reader = new FileReader();
+  try {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
 
-    reader.onload = (e) => {
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let { width, height } = img;
+      reader.onload = (e) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
 
-        // Max dimension 2048px
-        const maxDim = 2048;
-        if (width > maxDim || height > maxDim) {
-          const ratio = Math.min(maxDim / width, maxDim / height);
-          width *= ratio;
-          height *= ratio;
-        }
+          // Max dimension 2048px
+          const maxDim = 2048;
+          if (width > maxDim || height > maxDim) {
+            const ratio = Math.min(maxDim / width, maxDim / height);
+            width *= ratio;
+            height *= ratio;
+          }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file); // Fallback to original
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
 
-        canvas.toBlob(
-          (blob) => resolve(blob || file),
-          'image/jpeg',
-          quality
-        );
+          canvas.toBlob(
+            (blob) => resolve(blob || file), // Fallback if blob is null
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => resolve(file);
+        img.src = e.target.result;
       };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  } catch (err) {
+    console.warn('[compressImage] Compression failed, using original:', err);
+    return file;
+  }
 }
 
 // ─── Helper: Photo thumbnail from Supabase Storage ───
