@@ -161,27 +161,13 @@ CREATE POLICY "v7_user_select_own" ON users FOR SELECT TO authenticated
   USING (auth_user_id = auth.uid());
 
 -- 2. Staff sees colleagues in same clinic
--- Note: We use a subquery to help PG break the planning loop
+-- We use the SECURITY DEFINER function to bypass RLS recursion
 CREATE POLICY "v7_staff_select_colleagues" ON users FOR SELECT TO authenticated
-  USING (
-    clinic_id = (
-      SELECT u.clinic_id 
-      FROM users u 
-      WHERE u.auth_user_id = auth.uid()
-      LIMIT 1
-    )
-  );
+  USING (clinic_id = get_my_clinic_id());
 
 -- 3. Patient sees staff of their clinic (for messaging context)
 CREATE POLICY "v7_patient_select_clinic_staff" ON users FOR SELECT TO authenticated
-  USING (
-    clinic_id = (
-      SELECT p.clinic_id 
-      FROM patients p 
-      WHERE p.auth_user_id = auth.uid()
-      LIMIT 1
-    )
-  );
+  USING (clinic_id = get_my_patient_clinic_id());
 
 -- 4. Admin can insert staff
 CREATE POLICY "v7_admin_insert_user" ON users FOR INSERT TO authenticated

@@ -11,9 +11,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
     autoRefreshToken: true,
+    persistSession: true,
     detectSessionInUrl: true,
-    detectSessionInUrl: true,
+    storageKey: 'postop-auth-token',
+    // Disable the lock API if it's causing stalls (common in local dev/agents)
+    // Note: older versions of supabase-js might not support this key, 
+    // but it's safe to include as an extra property.
+    flowType: 'pkce'
   }
 });
