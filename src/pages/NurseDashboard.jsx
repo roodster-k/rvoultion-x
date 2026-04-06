@@ -9,6 +9,7 @@ import AddPatientModal from '../components/AddPatientModal';
 import AlertCenter from '../components/AlertCenter';
 import Settings from './Settings';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
+import AgendaView from '../components/AgendaView';
 import { useAuth } from '../context/AuthContext';
 import { usePatientContext } from '../context/PatientContext';
 import { useAlertContext } from '../context/AlertContext';
@@ -29,6 +30,7 @@ export default function NurseDashboard() {
   const prevAlertCount = useRef(alerts.length);
 
   const currentPatient = selectedPatientId ? getPatientById(selectedPatientId) : null;
+  const { patients } = usePatientContext();
   const filteredPatients = getFilteredPatients(searchTerm, viewMode, user?.name);
   const STATS = getStats(filteredPatients);
 
@@ -87,6 +89,8 @@ export default function NurseDashboard() {
           <AlertCenter onSelectPatient={handleSelectPatient} />
         ) : activeView === 'analytics' && !currentPatient ? (
           <AnalyticsDashboard />
+        ) : activeView === 'agenda' && !currentPatient ? (
+          <AgendaView onSelectPatient={handleSelectPatient} patients={patients} />
         ) : !currentPatient ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <header className="flex justify-between items-center mb-6 flex-wrap gap-4">
