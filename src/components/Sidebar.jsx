@@ -1,5 +1,5 @@
 import NavItem from './NavItem';
-import { LayoutDashboard, Users, Bell, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Bell, LogOut, Settings, BarChart2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAlertContext } from '../context/AlertContext';
 
@@ -48,6 +48,12 @@ export default function Sidebar({
             </div>
           )}
         </div>
+
+        <NavItem icon={<BarChart2 size={20} />} label="Analytique" active={activeView === 'analytics'} onClick={() => {
+          setSelectedPatientId(null);
+          setActiveView('analytics');
+          setSidebarOpen(false);
+        }} />
 
         {isAdmin && (
           <NavItem icon={<Settings size={20} />} label="Paramètres Clinique" active={activeView === 'settings'} onClick={() => {

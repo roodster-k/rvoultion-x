@@ -8,6 +8,7 @@ import PatientDetail from '../components/PatientDetail';
 import AddPatientModal from '../components/AddPatientModal';
 import AlertCenter from '../components/AlertCenter';
 import Settings from './Settings';
+import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import { useAuth } from '../context/AuthContext';
 import { usePatientContext } from '../context/PatientContext';
 import { useAlertContext } from '../context/AlertContext';
@@ -84,6 +85,8 @@ export default function NurseDashboard() {
           <Settings />
         ) : activeView === 'alerts' && !currentPatient ? (
           <AlertCenter onSelectPatient={handleSelectPatient} />
+        ) : activeView === 'analytics' && !currentPatient ? (
+          <AnalyticsDashboard />
         ) : !currentPatient ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <header className="flex justify-between items-center mb-6 flex-wrap gap-4">

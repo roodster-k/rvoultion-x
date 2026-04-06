@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns } from 'lucide-react';
+import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAlertContext } from '../context/AlertContext';
 import { statusConfig } from '../data/constants';
@@ -61,15 +61,40 @@ export default function PatientDetail({ currentPatient, onBack }) {
 
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          body * { display: none !important; }
+          .print-report, .print-report * { display: block !important; }
+          .print-report table { display: table !important; }
+          .print-report thead { display: table-header-group !important; }
+          .print-report tbody { display: table-row-group !important; }
+          .print-report tr { display: table-row !important; }
+          .print-report td, .print-report th { display: table-cell !important; }
+          .print-report { position: fixed; top: 0; left: 0; width: 100%; padding: 24px; background: white; z-index: 9999; }
+        }
+      `}</style>
+
       {/* TopBar */}
-      <div className="flex justify-between items-center mb-6 flex-wrap gap-2.5">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-2.5 no-print">
         <button onClick={onBack} className="bg-primary-light text-primary hover:bg-[#d0ece8] border-none cursor-pointer font-semibold text-sm flex items-center gap-1.5 py-2 px-4 rounded-xl transition-colors">
           ‹ Retour
         </button>
-        <Link to={`/patient/${currentPatient.token}`} target="_blank" className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-dark py-2 px-4 rounded-xl no-underline transition-colors shadow-sm">
-          Simuler App Patient ↗
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 text-[13px] font-semibold text-text-muted bg-white hover:bg-slate-50 border border-border py-2 px-4 rounded-xl transition-colors shadow-sm"
+          >
+            <Printer size={15} /> Exporter PDF
+          </button>
+          <Link to={`/patient/${currentPatient.token}`} target="_blank" className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-dark py-2 px-4 rounded-xl no-underline transition-colors shadow-sm">
+            Simuler App Patient ↗
+          </Link>
+        </div>
       </div>
+
+      {/* Print-only report */}
+      <PrintReport patient={currentPatient} />
 
       {/* Patient Info Card */}
       <div className="card p-7 mb-5 shadow-sm">
@@ -390,6 +415,139 @@ export default function PatientDetail({ currentPatient, onBack }) {
         )}
       </div>
     </motion.div>
+  );
+}
+
+// ─── Print-only patient report ───
+function PrintReport({ patient }) {
+  const notes = Array.isArray(patient.notes) ? patient.notes : [];
+  const doneTasks = patient.checklist?.filter(t => t.done) || [];
+  const pendingTasks = patient.checklist?.filter(t => !t.done) || [];
+  const lastPain = patient.painScores?.length
+    ? patient.painScores[patient.painScores.length - 1]
+    : null;
+
+  return (
+    <div className="print-report" style={{ fontFamily: 'serif' }}>
+      {/* Header */}
+      <div style={{ borderBottom: '2px solid #0f5f54', paddingBottom: 12, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#0f5f54' }}>PostOp — Rapport de suivi</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+            Généré le {new Date().toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 12, color: '#64748b' }}>
+          Document confidentiel — usage médical
+        </div>
+      </div>
+
+      {/* Patient info */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{patient.name}</div>
+        <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
+          <tbody>
+            <tr>
+              <td style={{ color: '#64748b', paddingRight: 16, paddingBottom: 4, fontWeight: 600 }}>Intervention</td>
+              <td style={{ paddingBottom: 4 }}>{patient.intervention}</td>
+              <td style={{ color: '#64748b', paddingRight: 16, paddingLeft: 24, paddingBottom: 4, fontWeight: 600 }}>Chirurgien</td>
+              <td style={{ paddingBottom: 4 }}>{patient.chirurgien}</td>
+            </tr>
+            <tr>
+              <td style={{ color: '#64748b', paddingRight: 16, paddingBottom: 4, fontWeight: 600 }}>Date opération</td>
+              <td style={{ paddingBottom: 4 }}>{patient.date}</td>
+              <td style={{ color: '#64748b', paddingRight: 16, paddingLeft: 24, paddingBottom: 4, fontWeight: 600 }}>Jour post-op</td>
+              <td style={{ paddingBottom: 4 }}>J+{patient.jourPostOp}</td>
+            </tr>
+            <tr>
+              <td style={{ color: '#64748b', paddingRight: 16, fontWeight: 600 }}>Statut</td>
+              <td style={{ textTransform: 'capitalize', fontWeight: 700 }}>{patient.status}</td>
+              {lastPain && <>
+                <td style={{ color: '#64748b', paddingRight: 16, paddingLeft: 24, fontWeight: 600 }}>Dernière douleur</td>
+                <td style={{ fontWeight: 700, color: lastPain.score >= 7 ? '#ef4444' : lastPain.score >= 4 ? '#f59e0b' : '#10b981' }}>
+                  {lastPain.score}/10 (J+{lastPain.jour})
+                </td>
+              </>}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pain scores table */}
+      {patient.painScores?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f5f54', marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>
+            Évolution de la douleur
+          </div>
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Jour</th>
+                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Score</th>
+                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Notes</th>
+                <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...patient.painScores].sort((a, b) => a.jour - b.jour).map((ps, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '5px 8px', fontWeight: 600 }}>J+{ps.jour}</td>
+                  <td style={{ padding: '5px 8px', fontWeight: 800, color: ps.score >= 7 ? '#ef4444' : ps.score >= 4 ? '#f59e0b' : '#10b981' }}>
+                    {ps.score}/10
+                  </td>
+                  <td style={{ padding: '5px 8px', color: '#64748b' }}>{ps.notes || '—'}</td>
+                  <td style={{ padding: '5px 8px', color: '#94a3b8', fontSize: 11 }}>
+                    {ps.timestamp ? new Date(ps.timestamp).toLocaleDateString('fr-BE') : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Tasks */}
+      {patient.checklist?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f5f54', marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>
+            Protocole — {doneTasks.length}/{patient.checklist.length} tâches complétées
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            {patient.checklist.map((t, i) => (
+              <div key={i} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
+                <span style={{ color: t.done ? '#10b981' : '#cbd5e1', fontSize: 14 }}>{t.done ? '☑' : '☐'}</span>
+                <span style={{ color: t.done ? '#64748b' : '#1e293b', textDecoration: t.done ? 'line-through' : 'none' }}>
+                  {t.label} <span style={{ color: '#94a3b8' }}>({t.jour})</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Clinical notes */}
+      {notes.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f5f54', marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>
+            Notes cliniques ({notes.length})
+          </div>
+          {notes.map((n, i) => (
+            <div key={i} style={{ marginBottom: 6, paddingLeft: 10, borderLeft: '2px solid #e2e8f0' }}>
+              <div style={{ fontSize: 12, color: '#1e293b' }}>{n.text}</div>
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                {n.author} · {new Date(n.ts).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 10, marginTop: 8, fontSize: 10, color: '#94a3b8', display: 'flex', justifyContent: 'space-between' }}>
+        <span>PostOp — Suivi post-opératoire</span>
+        <span>Document généré automatiquement — Ne pas diffuser sans autorisation médicale</span>
+      </div>
+    </div>
   );
 }
 
