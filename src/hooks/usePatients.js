@@ -76,9 +76,11 @@ export default function usePatients() {
       (messagesRes.data || []).forEach(m => {
         if (!messagesMap[m.patient_id]) messagesMap[m.patient_id] = [];
         messagesMap[m.patient_id].push({
-          from: m.sender_type, // V2: 'nurse', 'patient', 'surgeon', 'system' (V1 expected same)
+          id: m.id,
+          from: m.sender_type,
           text: m.content,
           timestamp: m.created_at,
+          isRead: m.is_read,
         });
       });
 
@@ -187,9 +189,11 @@ export default function usePatients() {
           patientCanCheck: t.patient_can_check
         })),
         messages: (messagesRes.data || []).map(m => ({
+          id: m.id,
           from: m.sender_type,
           text: m.content,
-          timestamp: m.created_at
+          timestamp: m.created_at,
+          isRead: m.is_read,
         })),
         photos: (photosRes.data || []).map(p => ({
           jour: p.jour_post_op,
@@ -217,6 +221,44 @@ export default function usePatients() {
   useEffect(() => {
     fetchPatients();
   }, [fetchPatients]);
+
+  // ─── Realtime: messages ───
+  useEffect(() => {
+    if (!profile?.clinic_id) return;
+
+    const channel = supabase
+      .channel(`messages:clinic:${profile.clinic_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `clinic_id=eq.${profile.clinic_id}`,
+      }, (payload) => {
+        const m = payload.new;
+        setPatients(prev => prev.map(p => {
+          if (p.id !== m.patient_id) return p;
+          // Replace matching temp message (same sender + text, tempId prefix)
+          const filtered = p.messages.filter(msg =>
+            !(msg.id?.startsWith('temp_') && msg.from === m.sender_type && msg.text === m.content)
+          );
+          // Dedup: skip if real id already present
+          if (filtered.some(msg => msg.id === m.id)) return { ...p, messages: filtered };
+          return {
+            ...p,
+            messages: [...filtered, {
+              id: m.id,
+              from: m.sender_type,
+              text: m.content,
+              timestamp: m.created_at,
+              isRead: m.is_read,
+            }],
+          };
+        }));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.clinic_id]);
 
   // ==========================================
   // MUTATIONS — Write to Supabase V2 + optimistic UI
@@ -299,13 +341,14 @@ export default function usePatients() {
   // sendMessage => 'messages' table with V2 format (sender_type, content)
   const sendMessage = useCallback(async (patientId, text, sender = 'nurse') => {
     if (!profile) return;
-    
-    const timestamp = new Date().toISOString();
 
-    // Optimistic update
+    const timestamp = new Date().toISOString();
+    const tempId = `temp_${Date.now()}`;
+
+    // Optimistic update with temp ID so realtime handler can deduplicate
     setPatients(prev => prev.map(p =>
       p.id === patientId
-        ? { ...p, messages: [...p.messages, { from: sender, text, timestamp }] }
+        ? { ...p, messages: [...p.messages, { id: tempId, from: sender, text, timestamp, isRead: true }] }
         : p
     ));
 

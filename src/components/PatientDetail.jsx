@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useAlertContext } from '../context/AlertContext';
 import { statusConfig } from '../data/constants';
 import PainChart from './PainChart';
 import useAppointments from '../hooks/useAppointments';
+import { supabase } from '../lib/supabase';
 
 export default function PatientDetail({ currentPatient, onBack }) {
   const { toggleTask, addNote, addCustomTask, sendMessage, updatePatientStatus, invitePatient } = useData();
@@ -44,6 +45,27 @@ export default function PatientDetail({ currentPatient, onBack }) {
     setApptTitle(''); setApptDate(''); setApptTime(''); setApptLocation('');
     setApptSaving(false);
   };
+
+  // ─── Messages: auto-scroll + mark-as-read ───
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (activeTab === 'messages') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeTab, currentPatient.messages]);
+
+  useEffect(() => {
+    if (activeTab !== 'messages') return;
+    // Mark unread patient messages as read in DB
+    const unreadIds = currentPatient.messages
+      .filter(m => m.from === 'patient' && !m.isRead && m.id && !m.id.startsWith('temp_'))
+      .map(m => m.id);
+    if (unreadIds.length === 0) return;
+    supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+  }, [activeTab, currentPatient.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unreadCount = currentPatient.messages.filter(m => m.from === 'patient' && !m.isRead).length;
 
   // ─── Notes chronologiques ───
   const notes = Array.isArray(currentPatient.notes) ? currentPatient.notes : [];
@@ -263,7 +285,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
           { key: 'evolution', icon: <TrendingUp size={16} />, label: 'Évolution' },
           { key: 'rdv', icon: <CalendarDays size={16} />, label: `RDV (${patientAppts.length})` },
           { key: 'photos', icon: <ImageIcon size={16} />, label: `Photos (${currentPatient.photos.length})` },
-          { key: 'messages', icon: <MessageCircle size={16} />, label: `Messages (${currentPatient.messages.length})` },
+          { key: 'messages', icon: <MessageCircle size={16} />, label: 'Messages', badge: unreadCount },
         ].map(tab => (
           <button key={tab.key} onClick={() => {
             setActiveTab(tab.key);
@@ -271,6 +293,11 @@ export default function PatientDetail({ currentPatient, onBack }) {
           }} className={`py-2.5 px-4.5 rounded-xl border-none font-bold flex items-center gap-2 cursor-pointer text-[13px] transition-all whitespace-nowrap
             ${activeTab === tab.key ? 'bg-primary text-white shadow-md' : 'bg-white text-text-muted shadow-sm hover:text-text-dark hover:bg-slate-50'}`}>
             {tab.icon} {tab.label}
+            {tab.badge > 0 && (
+              <span className="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1 -ml-0.5">
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -417,7 +444,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
               {currentPatient.messages.length === 0 ? (
                 <p className="text-center text-text-muted mt-10 font-medium">Aucun message échangé avec {currentPatient.name.split(' ')[0]}.</p>
               ) : currentPatient.messages.map((m, i) => (
-                <div key={i} className={`max-w-[75%] ${m.from === 'nurse' ? 'self-end' : 'self-start'}`}>
+                <div key={m.id || i} className={`max-w-[75%] ${m.from === 'nurse' ? 'self-end' : 'self-start'}`}>
                   <div className={`py-3 px-4 rounded-[16px] shadow-sm text-sm leading-relaxed font-medium
                     ${m.from === 'nurse' ? 'bg-primary text-white rounded-br-sm' : 'bg-white text-text-dark border border-border rounded-bl-sm'}`}>
                     {m.text}
@@ -427,6 +454,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
             </div>
             <div className="flex gap-2.5">
               <input type="text" value={messageInput} onChange={e=>setMessageInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter' && messageInput.trim()){sendMessage(currentPatient.id, messageInput, 'nurse'); setMessageInput('');}}} placeholder="Envoyer un message sécurisé..." className="flex-1 py-3 px-4 rounded-xl border border-border text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
