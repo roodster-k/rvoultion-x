@@ -1,11 +1,37 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { CalendarDays, Clock, MapPin } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CalendarDays, MapPin, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import useAppointments from '../hooks/useAppointments';
+import { useToast } from '../context/ToastContext';
 
 export default function AgendaView({ onSelectPatient, patients }) {
-  const { appointments, loading, toggleAppointment } = useAppointments();
+  const { appointments, loading, toggleAppointment, addAppointment } = useAppointments();
+  const { toast } = useToast();
   const [showDone, setShowDone] = useState(false);
+  const [showQuickForm, setShowQuickForm] = useState(false);
+  const [qPatient, setQPatient] = useState('');
+  const [qTitle, setQTitle] = useState('');
+  const [qDate, setQDate] = useState('');
+  const [qTime, setQTime] = useState('');
+  const [qSaving, setQSaving] = useState(false);
+
+  const handleQuickAdd = async () => {
+    if (!qPatient || !qTitle.trim() || !qDate) return;
+    setQSaving(true);
+    const result = await addAppointment({
+      patientId: qPatient,
+      title: qTitle.trim(),
+      scheduledAt: new Date(`${qDate}T${qTime || '09:00'}`).toISOString(),
+    });
+    setQSaving(false);
+    if (result?.error) {
+      toast('Erreur lors de la planification.', 'error');
+    } else {
+      toast('RDV planifié.', 'success');
+      setQPatient(''); setQTitle(''); setQDate(''); setQTime('');
+      setShowQuickForm(false);
+    }
+  };
 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -22,12 +48,47 @@ export default function AgendaView({ onSelectPatient, patients }) {
           <h1 className="font-serif text-3xl mb-2 font-bold text-text-dark">Agenda</h1>
           <p className="text-text-muted font-medium text-sm">Rendez-vous de suivi post-opératoire planifiés.</p>
         </div>
-        <label className="flex items-center gap-2 text-[13px] font-semibold text-text-muted cursor-pointer select-none">
-          <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)}
-            className="accent-primary w-4 h-4 rounded" />
-          Afficher effectués
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-[13px] font-semibold text-text-muted cursor-pointer select-none">
+            <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)}
+              className="accent-primary w-4 h-4 rounded" />
+            Effectués
+          </label>
+          <button onClick={() => setShowQuickForm(v => !v)}
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary-dark text-white border-none py-2 px-3.5 rounded-xl font-bold text-[13px] cursor-pointer transition-colors shadow-sm">
+            <Plus size={14} /> Nouveau RDV
+            {showQuickForm ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+        </div>
       </div>
+
+      {/* Quick add form */}
+      <AnimatePresence>
+        {showQuickForm && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="card p-5 mb-6 shadow-sm border-primary/20">
+            <h3 className="text-[13px] font-bold text-text-dark mb-3">Planifier un rendez-vous</h3>
+            <div className="flex flex-wrap gap-2.5">
+              <select value={qPatient} onChange={e => setQPatient(e.target.value)}
+                className="flex-1 min-w-[180px] py-2.5 px-3.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
+                <option value="">— Patient —</option>
+                {(patients || []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input type="text" value={qTitle} onChange={e => setQTitle(e.target.value)}
+                placeholder="Objet du RDV"
+                className="flex-1 min-w-[160px] py-2.5 px-3.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+              <input type="date" value={qDate} onChange={e => setQDate(e.target.value)}
+                className="py-2.5 px-3.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white" />
+              <input type="time" value={qTime} onChange={e => setQTime(e.target.value)}
+                className="py-2.5 px-3.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white" />
+              <button onClick={handleQuickAdd} disabled={!qPatient || !qTitle.trim() || !qDate || qSaving}
+                className="bg-primary hover:bg-primary-dark disabled:opacity-40 text-white border-none py-2.5 px-4 rounded-xl font-bold text-[13px] cursor-pointer transition-colors shadow-sm">
+                {qSaving ? 'Enregistrement...' : 'Planifier'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading && (
         <div className="flex justify-center py-16 text-text-muted text-sm">Chargement…</div>
@@ -38,7 +99,7 @@ export default function AgendaView({ onSelectPatient, patients }) {
           <CalendarDays size={40} className="mx-auto mb-5 text-text-muted opacity-20" />
           <h3 className="text-xl font-serif font-black text-text-dark mb-3">Aucun rendez-vous à venir</h3>
           <p className="text-text-muted text-sm leading-relaxed">
-            Planifiez des RDV depuis la fiche d'un patient (onglet RDV).
+            Utilisez le bouton "Nouveau RDV" ci-dessus ou planifiez depuis la fiche patient.
           </p>
         </div>
       )}

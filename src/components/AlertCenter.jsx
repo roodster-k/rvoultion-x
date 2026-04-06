@@ -17,7 +17,10 @@ export default function AlertCenter({ onSelectPatient }) {
   const [filter, setFilter] = useState('all');
   const [readIds, setReadIds] = useState(new Set());
 
-  const filtered = filter === 'all' ? alerts : alerts.filter(a => a.type === filter);
+  const SEVERITY = { danger: 0, warning: 1, info: 2, success: 3 };
+  const filtered = (filter === 'all' ? alerts : alerts.filter(a => a.type === filter))
+    .slice()
+    .sort((a, b) => (SEVERITY[a.type] ?? 9) - (SEVERITY[b.type] ?? 9));
   const unreadCount = alerts.filter(a => !readIds.has(a.id)).length;
 
   const markRead = (id) => setReadIds(prev => new Set([...prev, id]));
