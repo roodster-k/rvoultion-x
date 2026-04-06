@@ -710,6 +710,7 @@ export default function PatientPortalAuth() {
                 <PainChart
                   painScores={painScores.map(ps => ({ score: ps.score, jour: ps.jour_post_op }))}
                   height={160}
+                  intervention={patient?.intervention}
                 />
               </div>
             </motion.div>

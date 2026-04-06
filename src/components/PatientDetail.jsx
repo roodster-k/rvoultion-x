@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer } from 'lucide-react';
+import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAlertContext } from '../context/AlertContext';
 import { statusConfig } from '../data/constants';
 import PainChart from './PainChart';
+import useAppointments from '../hooks/useAppointments';
 
 export default function PatientDetail({ currentPatient, onBack }) {
   const { toggleTask, addNote, addCustomTask, sendMessage, updatePatientStatus, invitePatient } = useData();
@@ -21,6 +22,28 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const [inviteMsg, setInviteMsg] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]); // max 2 photo ids
+
+  // ─── Appointments ───
+  const { getPatientAppointments, addAppointment, toggleAppointment, deleteAppointment } = useAppointments();
+  const patientAppts = getPatientAppointments(currentPatient.id);
+  const [apptTitle, setApptTitle] = useState('');
+  const [apptDate, setApptDate] = useState('');
+  const [apptTime, setApptTime] = useState('');
+  const [apptLocation, setApptLocation] = useState('');
+  const [apptSaving, setApptSaving] = useState(false);
+
+  const handleAddAppt = async () => {
+    if (!apptTitle.trim() || !apptDate) return;
+    setApptSaving(true);
+    await addAppointment({
+      patientId: currentPatient.id,
+      title: apptTitle.trim(),
+      scheduledAt: new Date(`${apptDate}T${apptTime || '09:00'}`).toISOString(),
+      location: apptLocation.trim() || null,
+    });
+    setApptTitle(''); setApptDate(''); setApptTime(''); setApptLocation('');
+    setApptSaving(false);
+  };
 
   // ─── Notes chronologiques ───
   const notes = Array.isArray(currentPatient.notes) ? currentPatient.notes : [];
@@ -238,6 +261,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
         {[
           { key: 'checklist', icon: <CheckSquare size={16} />, label: 'Protocole' },
           { key: 'evolution', icon: <TrendingUp size={16} />, label: 'Évolution' },
+          { key: 'rdv', icon: <CalendarDays size={16} />, label: `RDV (${patientAppts.length})` },
           { key: 'photos', icon: <ImageIcon size={16} />, label: `Photos (${currentPatient.photos.length})` },
           { key: 'messages', icon: <MessageCircle size={16} />, label: `Messages (${currentPatient.messages.length})` },
         ].map(tab => (
@@ -305,7 +329,84 @@ export default function PatientDetail({ currentPatient, onBack }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <h3 className="text-[17px] mb-2 font-bold text-text-dark">Évolution de la douleur</h3>
             <p className="text-sm text-text-muted mb-5">Scores déclarés par le patient au fil des jours post-opératoires.</p>
-            <PainChart painScores={currentPatient.painScores} height={180} />
+            <PainChart painScores={currentPatient.painScores} height={180} intervention={currentPatient.intervention} />
+          </motion.div>
+        )}
+
+        {/* RDV TAB */}
+        {activeTab === 'rdv' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h3 className="text-[17px] mb-1 font-bold text-text-dark">Rendez-vous de suivi</h3>
+            <p className="text-sm text-text-muted mb-5">Planifiez les consultations et contrôles post-opératoires.</p>
+
+            {/* Appointment list */}
+            {patientAppts.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-border mb-5">
+                <CalendarDays size={32} className="mx-auto mb-3 text-text-muted opacity-30" />
+                <p className="text-text-muted font-medium text-sm">Aucun rendez-vous planifié.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5 mb-5">
+                {patientAppts.map(appt => {
+                  const dt = new Date(appt.scheduledAt);
+                  const isPast = dt < new Date();
+                  return (
+                    <div key={appt.id} className={`flex items-start gap-3.5 p-3.5 rounded-2xl border transition-all
+                      ${appt.done ? 'bg-slate-50 border-border opacity-60' : isPast ? 'bg-amber-50 border-amber-200' : 'bg-white border-border shadow-sm'}`}>
+                      <button onClick={() => toggleAppointment(appt.id)}
+                        className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors
+                          ${appt.done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-primary'}`}>
+                        {appt.done && <span className="text-[11px] font-bold">✓</span>}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-bold text-sm ${appt.done ? 'line-through text-text-muted' : 'text-text-dark'}`}>
+                          {appt.title}
+                        </div>
+                        <div className="text-[12px] text-text-muted font-semibold mt-0.5">
+                          {dt.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                          {' à '}
+                          {dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                          {appt.location && <span className="ml-2">· 📍 {appt.location}</span>}
+                        </div>
+                        {!appt.done && isPast && (
+                          <span className="inline-block mt-1 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-lg">Passé</span>
+                        )}
+                      </div>
+                      <button onClick={() => deleteAppointment(appt.id)}
+                        className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Add appointment form */}
+            <div className="p-5 border-2 border-dashed border-primary/40 rounded-2xl bg-primary-light/50">
+              <h4 className="text-sm text-primary-dark mb-3 flex items-center gap-2 font-bold">
+                <Plus size={16} /> Nouveau rendez-vous
+              </h4>
+              <div className="flex flex-col gap-2.5">
+                <input type="text" value={apptTitle} onChange={e => setApptTitle(e.target.value)}
+                  placeholder="Titre (ex : Contrôle cicatrice J+14)"
+                  className="py-2.5 px-3.5 rounded-xl border border-primary/20 text-[13px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                <div className="flex gap-2.5 flex-wrap">
+                  <input type="date" value={apptDate} onChange={e => setApptDate(e.target.value)}
+                    className="flex-1 min-w-[140px] py-2.5 px-3.5 rounded-xl border border-primary/20 text-[13px] outline-none focus:border-primary bg-white" />
+                  <input type="time" value={apptTime} onChange={e => setApptTime(e.target.value)}
+                    className="py-2.5 px-3.5 rounded-xl border border-primary/20 text-[13px] outline-none focus:border-primary bg-white" />
+                  <input type="text" value={apptLocation} onChange={e => setApptLocation(e.target.value)}
+                    placeholder="Lieu (optionnel)"
+                    className="flex-1 min-w-[140px] py-2.5 px-3.5 rounded-xl border border-primary/20 text-[13px] outline-none focus:border-primary bg-white" />
+                </div>
+                <button onClick={handleAddAppt} disabled={!apptTitle.trim() || !apptDate || apptSaving}
+                  className={`self-start bg-primary hover:bg-primary-dark text-white border-none py-2.5 px-5 rounded-xl font-bold cursor-pointer text-[13px] transition-colors shadow-sm
+                    ${(!apptTitle.trim() || !apptDate) ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  {apptSaving ? 'Enregistrement...' : 'Planifier'}
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
 
