@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp } from 'lucide-react';
@@ -28,6 +28,7 @@ export default function PatientPortalAuth() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks');
   const [messageInput, setMessageInput] = useState('');
+  const messagesEndRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [submittingPain, setSubmittingPain] = useState(false);
@@ -97,6 +98,47 @@ export default function PatientPortalAuth() {
       fetchData();
     }
   }, [authLoading, authUser, fetchData]);
+
+  // ─── Realtime: incoming messages from care team ───
+  useEffect(() => {
+    if (!patient?.id) return;
+
+    const channel = supabase
+      .channel(`messages:patient:${patient.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `patient_id=eq.${patient.id}`,
+      }, (payload) => {
+        const m = payload.new;
+        if (m.sender_type === 'patient') return; // already added optimistically
+        setMessages(prev => {
+          if (prev.some(msg => msg.id === m.id)) return prev;
+          return [...prev, m];
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [patient?.id]);
+
+  // ─── Auto-scroll on new messages ───
+  useEffect(() => {
+    if (activeTab === 'messages') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeTab, messages]);
+
+  // ─── Mark staff messages as read when opening messages tab ───
+  useEffect(() => {
+    if (activeTab !== 'messages' || !patient?.id) return;
+    const unreadIds = messages
+      .filter(m => m.sender_type !== 'patient' && !m.is_read && m.id && !String(m.id).startsWith('temp_'))
+      .map(m => m.id);
+    if (unreadIds.length === 0) return;
+    supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+  }, [activeTab, patient?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Toggle task (patient_can_check only — enforced by RLS) ───
   const handleToggleTask = async (taskId) => {
@@ -416,14 +458,20 @@ export default function PatientPortalAuth() {
             {[
               { id: 'tasks', icon: <Check size={20} />, label: 'Tâches' },
               { id: 'photos', icon: <Camera size={20} />, label: 'Photos' },
-              { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages' },
+              { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages',
+                badge: messages.filter(m => m.sender_type !== 'patient' && !m.is_read).length },
               { id: 'evolution', icon: <TrendingUp size={20} />, label: 'Évolution' },
               { id: 'info', icon: <Info size={20} />, label: 'Infos' },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`
-                flex-1 min-w-[28%] py-3 px-1.5 rounded-[14px] border-none font-bold text-[13px] transition-all cursor-pointer flex flex-col items-center gap-1.5
+                relative flex-1 min-w-[28%] py-3 px-1.5 rounded-[14px] border-none font-bold text-[13px] transition-all cursor-pointer flex flex-col items-center gap-1.5
                 ${activeTab === tab.id ? 'bg-primary text-white shadow-button' : 'bg-white text-text-muted shadow-[0_1px_3px_rgba(0,0,0,0.05)] hover:text-text-dark hover:bg-slate-50'}`}>
                 {tab.icon} {tab.label}
+                {tab.badge > 0 && (
+                  <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1">
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -669,8 +717,8 @@ export default function PatientPortalAuth() {
                 </div>
                 {messages.length === 0
                   ? <p className="text-center text-text-muted font-medium mt-4">Aucun message. Posez une question à l'équipe médicale ci-dessous.</p>
-                  : messages.map((m) => (
-                    <div key={m.id} className={`max-w-[80%] ${m.sender_type === 'patient' ? 'self-end' : 'self-start'}`}>
+                  : messages.map((m, i) => (
+                    <div key={m.id || i} className={`max-w-[80%] ${m.sender_type === 'patient' ? 'self-end' : 'self-start'}`}>
                       <div className={`py-3 px-4 rounded-[18px] shadow-sm text-[14px] leading-relaxed font-medium
                         ${m.sender_type === 'patient'
                           ? 'bg-primary text-white rounded-br-sm'
@@ -682,6 +730,7 @@ export default function PatientPortalAuth() {
                       </div>
                     </div>
                   ))}
+                <div ref={messagesEndRef} />
               </div>
               <div className="flex gap-2.5 bg-white p-2.5 rounded-[20px] border border-border shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
                 <input
