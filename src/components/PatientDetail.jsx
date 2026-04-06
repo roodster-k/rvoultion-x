@@ -96,6 +96,16 @@ export default function PatientDetail({ currentPatient, onBack }) {
     setTimeout(() => setInviteMsg(null), 4000);
   };
 
+  // ─── Log contact event as system message ───
+  const logContact = (type, detail) => {
+    const labels = {
+      phone:     `📞 Appel téléphonique — ${detail}`,
+      whatsapp:  `💬 Contact WhatsApp — ${detail}`,
+      email:     `📧 Email envoyé à ${detail}`,
+    };
+    sendMessage(currentPatient.id, labels[type], 'system');
+  };
+
   const inviteButtonState = () => {
     if (!currentPatient.email) return null;
     if (currentPatient.auth_user_id) return 'activated';
@@ -169,17 +179,24 @@ export default function PatientDetail({ currentPatient, onBack }) {
         {/* Contact + Invitation */}
         <div className="flex gap-2.5 flex-wrap mb-5">
           {currentPatient.phone && (
-            <a href={`tel:${currentPatient.phone.replace(/\s/g, '')}`} className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[13px] font-semibold no-underline hover:bg-emerald-100 transition-colors">
+            <a href={`tel:${currentPatient.phone.replace(/\s/g, '')}`}
+              onClick={() => logContact('phone', currentPatient.phone)}
+              className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[13px] font-semibold no-underline hover:bg-emerald-100 transition-colors">
               <Phone size={16} /> {currentPatient.phone}
             </a>
           )}
           {currentPatient.whatsapp && (
-            <a href={`https://wa.me/${currentPatient.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[13px] font-semibold no-underline hover:bg-emerald-100 transition-colors">
+            <a href={`https://wa.me/${currentPatient.whatsapp.replace(/[^0-9]/g, '')}`}
+              target="_blank" rel="noopener noreferrer"
+              onClick={() => logContact('whatsapp', currentPatient.whatsapp)}
+              className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[13px] font-semibold no-underline hover:bg-emerald-100 transition-colors">
               💬 WhatsApp
             </a>
           )}
           {currentPatient.email && (
-            <a href={`mailto:${currentPatient.email}`} className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-[13px] font-semibold no-underline hover:bg-blue-100 transition-colors">
+            <a href={`mailto:${currentPatient.email}`}
+              onClick={() => logContact('email', currentPatient.email)}
+              className="flex items-center gap-2 py-2.5 px-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-[13px] font-semibold no-underline hover:bg-blue-100 transition-colors">
               <AtSign size={16} /> {currentPatient.email}
             </a>
           )}
@@ -443,17 +460,28 @@ export default function PatientDetail({ currentPatient, onBack }) {
             <div className="flex-1 overflow-y-auto bg-slate-50 p-5 rounded-2xl mb-3.5 border border-border flex flex-col gap-2.5">
               {currentPatient.messages.length === 0 ? (
                 <p className="text-center text-text-muted mt-10 font-medium">Aucun message échangé avec {currentPatient.name.split(' ')[0]}.</p>
-              ) : currentPatient.messages.map((m, i) => (
-                <div key={m.id || i} className={`max-w-[75%] ${m.from === 'nurse' ? 'self-end' : 'self-start'}`}>
-                  <div className={`py-3 px-4 rounded-[16px] shadow-sm text-sm leading-relaxed font-medium
-                    ${m.from === 'nurse' ? 'bg-primary text-white rounded-br-sm' : 'bg-white text-text-dark border border-border rounded-bl-sm'}`}>
-                    {m.text}
+              ) : currentPatient.messages.map((m, i) => {
+                if (m.from === 'system') {
+                  return (
+                    <div key={m.id || i} className="self-center flex items-center gap-2 py-1.5 px-3.5 rounded-full bg-slate-100 border border-slate-200 text-[11px] font-semibold text-text-muted">
+                      {m.text}
+                      <span className="opacity-50">·</span>
+                      <span>{new Date(m.timestamp).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' })}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={m.id || i} className={`max-w-[75%] ${m.from === 'nurse' ? 'self-end' : 'self-start'}`}>
+                    <div className={`py-3 px-4 rounded-[16px] shadow-sm text-sm leading-relaxed font-medium
+                      ${m.from === 'nurse' ? 'bg-primary text-white rounded-br-sm' : 'bg-white text-text-dark border border-border rounded-bl-sm'}`}>
+                      {m.text}
+                    </div>
+                    <div className={`text-[10px] text-text-muted mt-1 font-semibold ${m.from === 'nurse' ? 'text-right' : 'text-left'}`}>
+                      {m.from === 'nurse' ? 'Vous' : currentPatient.name.split(' ')[0]} · {new Date(m.timestamp).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' })}
+                    </div>
                   </div>
-                  <div className={`text-[10px] text-text-muted mt-1 font-semibold ${m.from === 'nurse' ? 'text-right' : 'text-left'}`}>
-                    {m.from === 'nurse' ? 'Vous' : currentPatient.name.split(' ')[0]} · {new Date(m.timestamp).toLocaleTimeString('fr-BE', {hour: '2-digit', minute:'2-digit', timeZone: 'Europe/Brussels'})}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
             <div className="flex gap-2.5">
