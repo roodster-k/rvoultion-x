@@ -313,6 +313,7 @@ export default function usePatients() {
       label,
       jour_post_op_ref: targetJourNumber,
       patient_can_check: isForPatient,
+      assigned_by: profile.id,
       done: false
     };
 
