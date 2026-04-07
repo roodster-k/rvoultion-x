@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp } from 'lucide-react';
+import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp, FolderOpen, X, ZapIcon } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import PainChart from '../components/PainChart';
 import { supabase } from '../lib/supabase';
@@ -32,6 +32,15 @@ export default function PatientPortalAuth() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [submittingPain, setSubmittingPain] = useState(false);
+
+  // ─── Webcam (desktop camera) ───
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [webcamReady, setWebcamReady] = useState(false);
+  const [webcamError, setWebcamError] = useState(null);
+  const webcamRef = useRef(null);
+  const webcamStreamRef = useRef(null);
+  const captureCanvasRef = useRef(null);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
   // Check-in quotidien étendu
   const [checkinStep, setCheckinStep] = useState(1); // 1=douleur, 2=symptômes
   const [selectedScore, setSelectedScore] = useState(null);
@@ -259,17 +268,13 @@ export default function PatientPortalAuth() {
     }
   };
 
-  // ─── Upload photo ───
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !patient) return;
-
+  // ─── Upload photo (accepts File, Blob, or input event) ───
+  const uploadPhoto = async (fileOrBlob) => {
+    if (!fileOrBlob || !patient) return;
     setIsUploading(true);
     setUploadSuccess(false);
-
     try {
-      // Compress image client-side (max 1MB, JPEG 0.8)
-      const compressed = await compressImage(file, 1024 * 1024, 0.8);
+      const compressed = await compressImage(fileOrBlob, 1024 * 1024, 0.8);
 
       // Calculate jour post-op
       const surgeryDate = new Date(patient.surgery_date);
@@ -320,6 +325,55 @@ export default function PatientPortalAuth() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) uploadPhoto(file);
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  // ─── Webcam (desktop only) ───
+  const openWebcam = async () => {
+    setWebcamError(null);
+    setWebcamReady(false);
+    setShowWebcam(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      webcamStreamRef.current = stream;
+      if (webcamRef.current) {
+        webcamRef.current.srcObject = stream;
+        webcamRef.current.onloadedmetadata = () => setWebcamReady(true);
+      }
+    } catch (err) {
+      setWebcamError('Impossible d\'accéder à la caméra. Vérifiez les permissions du navigateur.');
+    }
+  };
+
+  const closeWebcam = () => {
+    if (webcamStreamRef.current) {
+      webcamStreamRef.current.getTracks().forEach(t => t.stop());
+      webcamStreamRef.current = null;
+    }
+    setShowWebcam(false);
+    setWebcamReady(false);
+    setWebcamError(null);
+  };
+
+  const captureWebcamPhoto = () => {
+    const video = webcamRef.current;
+    const canvas = captureCanvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      if (blob) {
+        closeWebcam();
+        uploadPhoto(blob);
+      }
+    }, 'image/jpeg', 0.9);
   };
 
   // ─── Logout ───
@@ -660,30 +714,98 @@ export default function PatientPortalAuth() {
           {/* Photos Tab */}
           {activeTab === 'photos' && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <div className="bg-white rounded-[20px] p-8 text-center border-2 border-dashed border-primary-light mb-6 shadow-sm">
-                <div className={`w-[60px] h-[60px] rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-300
+              <div className="bg-white rounded-[20px] p-6 border-2 border-dashed border-primary-light mb-6 shadow-sm">
+                <div className={`w-[54px] h-[54px] rounded-full flex items-center justify-center mx-auto mb-3 transition-all duration-300
                   ${uploadSuccess ? 'bg-status-normal-bg text-status-normal' : 'bg-primary-light text-primary'}`}>
-                  {isUploading ? <Loader2 size={28} className="animate-spin" /> : (uploadSuccess ? <Check size={28} /> : <Camera size={28} />)}
+                  {isUploading ? <Loader2 size={26} className="animate-spin" /> : (uploadSuccess ? <Check size={26} /> : <Camera size={26} />)}
                 </div>
-                <h3 className="text-[16px] mb-2 font-bold text-text-dark">
+                <h3 className="text-[16px] mb-1.5 font-bold text-text-dark text-center">
                   {uploadSuccess ? 'Photo envoyée avec succès !' : 'Envoyer une nouvelle photo'}
                 </h3>
-                <p className="text-[13px] text-text-muted mb-5 leading-relaxed font-medium">
+                <p className="text-[13px] text-text-muted mb-5 leading-relaxed font-medium text-center">
                   Photographiez la zone concernée pour permettre à votre chirurgien de contrôler l'évolution.
                 </p>
-                <label className={`block w-full py-3 px-6 text-white border-none rounded-xl font-bold text-[14px] transition-all shadow-sm text-center
-                  ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}>
-                  {isUploading ? 'Envoi en cours…' : 'Prendre ou sélectionner une photo'}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    disabled={isUploading}
-                    className="hidden"
-                  />
-                </label>
+
+                {/* Two distinct buttons */}
+                <div className="flex gap-3">
+                  {/* Gallery — always a plain file picker */}
+                  <label className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-[14px] transition-all border-2 text-center
+                    ${isUploading ? 'border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50' : 'border-primary text-primary hover:bg-primary-light cursor-pointer'}`}>
+                    <FolderOpen size={18} /> Galerie
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handlePhotoUpload}
+                      disabled={isUploading}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Camera — native on mobile, WebRTC modal on desktop */}
+                  {isMobile ? (
+                    <label className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-[14px] transition-all text-white text-center
+                      ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}>
+                      <Camera size={18} /> Caméra
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        capture="environment"
+                        onChange={handlePhotoUpload}
+                        disabled={isUploading}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <button
+                      onClick={openWebcam}
+                      disabled={isUploading}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-[14px] transition-all text-white border-none
+                        ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}>
+                      <Camera size={18} /> Caméra
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Webcam modal (desktop only) */}
+              {showWebcam && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                  <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                      <span className="font-bold text-text-dark flex items-center gap-2"><Camera size={18} className="text-primary" /> Prendre une photo</span>
+                      <button onClick={closeWebcam} className="text-text-muted hover:text-text-dark bg-transparent border-none cursor-pointer p-1">
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="relative bg-black aspect-video flex items-center justify-center">
+                      <video ref={webcamRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                      {!webcamReady && !webcamError && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 size={32} className="animate-spin text-white" />
+                        </div>
+                      )}
+                      {webcamError && (
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                          <p className="text-white text-sm font-medium bg-black/60 px-4 py-3 rounded-xl">{webcamError}</p>
+                        </div>
+                      )}
+                    </div>
+                    <canvas ref={captureCanvasRef} className="hidden" />
+                    <div className="px-5 py-4 flex justify-end gap-3">
+                      <button onClick={closeWebcam} className="px-5 py-2.5 rounded-xl font-bold text-sm text-text-muted hover:text-text-dark border border-border bg-white cursor-pointer transition-colors">
+                        Annuler
+                      </button>
+                      <button
+                        onClick={captureWebcamPhoto}
+                        disabled={!webcamReady || !!webcamError}
+                        className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-primary hover:bg-primary-dark border-none cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-sm transition-colors">
+                        <ZapIcon size={16} /> Capturer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               <h3 className="text-[16px] mb-4 font-bold text-text-dark">Historique des envois</h3>
               {photos.length === 0 ? (
