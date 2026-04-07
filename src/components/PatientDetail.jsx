@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2 } from 'lucide-react';
+import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2, Pill, X } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAlertContext } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
 import { statusConfig } from '../data/constants';
 import PainChart from './PainChart';
 import useAppointments from '../hooks/useAppointments';
+import useMedications from '../hooks/useMedications';
 import { supabase } from '../lib/supabase';
 
 export default function PatientDetail({ currentPatient, onBack }) {
@@ -29,6 +30,14 @@ export default function PatientDetail({ currentPatient, onBack }) {
 
   // ─── Appointments ───
   const { getPatientAppointments, addAppointment, toggleAppointment, deleteAppointment } = useAppointments();
+
+  // ─── Medications ───
+  const { getPatientMedications, getTemplatesForIntervention, addMedication, toggleMedication, deleteMedication, applyTemplate } = useMedications(currentPatient.id);
+  const patientMeds = getPatientMedications(currentPatient.id);
+  const interventionTemplates = getTemplatesForIntervention(currentPatient.intervention);
+  const [medForm, setMedForm] = useState({ name: '', dosage: '', frequency: '', startDay: 0, endDay: '', notes: '' });
+  const [medFormOpen, setMedFormOpen] = useState(false);
+  const [medSaving, setMedSaving] = useState(false);
   const patientAppts = getPatientAppointments(currentPatient.id);
   const [apptTitle, setApptTitle] = useState('');
   const [apptDate, setApptDate] = useState('');
@@ -316,6 +325,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
           { key: 'checklist', icon: <CheckSquare size={16} />, label: 'Protocole' },
           { key: 'evolution', icon: <TrendingUp size={16} />, label: 'Évolution' },
           { key: 'rdv', icon: <CalendarDays size={16} />, label: `RDV (${patientAppts.length})` },
+          { key: 'traitements', icon: <Pill size={16} />, label: `Traitements (${patientMeds.filter(m => m.is_active).length})` },
           { key: 'photos', icon: <ImageIcon size={16} />, label: `Photos (${currentPatient.photos.length})` },
           { key: 'messages', icon: <MessageCircle size={16} />, label: 'Messages', badge: unreadCount },
         ].map(tab => (
@@ -552,6 +562,147 @@ export default function PatientDetail({ currentPatient, onBack }) {
               <button onClick={()=>{if(messageInput.trim()){sendMessage(currentPatient.id, messageInput, 'nurse'); setMessageInput('');}}} className="bg-primary hover:bg-primary-dark text-white border-none px-5 rounded-xl cursor-pointer transition-colors shadow-sm flex items-center justify-center">
                 <Send size={18}/>
               </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* TRAITEMENTS TAB */}
+        {activeTab === 'traitements' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {/* Apply template banner */}
+            {interventionTemplates.length > 0 && patientMeds.length === 0 && (
+              <div className="mb-4 p-4 bg-primary-light border border-primary/20 rounded-[16px] flex items-center justify-between gap-3">
+                <div className="text-sm text-primary-dark font-semibold">
+                  {interventionTemplates.length} traitement(s) prédéfini(s) pour {currentPatient.intervention}
+                </div>
+                <button
+                  onClick={async () => {
+                    const { error } = await applyTemplate(currentPatient.id, currentPatient.intervention);
+                    if (error) toast(error, 'error');
+                    else toast(`${interventionTemplates.length} traitement(s) appliqué(s).`, 'success');
+                  }}
+                  className="bg-primary text-white border-none px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-primary-dark transition-colors shrink-0 shadow-sm">
+                  Appliquer
+                </button>
+              </div>
+            )}
+
+            {/* Medication list */}
+            <div className="flex flex-col gap-2.5 mb-5">
+              {patientMeds.length === 0 ? (
+                <div className="text-center py-8 text-text-muted text-sm border-2 border-dashed border-border rounded-[16px]">
+                  Aucun traitement enregistré.
+                </div>
+              ) : patientMeds.map(med => (
+                <div key={med.id} className={`bg-white rounded-[14px] border p-4 flex items-start gap-3 ${!med.is_active ? 'opacity-50 border-border' : 'border-primary/20 shadow-sm'}`}>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${med.is_active ? 'bg-primary-light text-primary' : 'bg-slate-100 text-slate-400'}`}>
+                    <Pill size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-[14px] text-text-dark flex items-center gap-2 flex-wrap">
+                      {med.name}
+                      {!med.is_active && <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold">Arrêté</span>}
+                    </div>
+                    <div className="text-[12px] text-text-muted font-medium mt-0.5 space-y-0.5">
+                      {med.dosage && <span className="mr-3">{med.dosage}</span>}
+                      {med.frequency && <span className="mr-3">· {med.frequency}</span>}
+                      {med.end_day != null && <span>· Jusqu'à J+{med.end_day}</span>}
+                    </div>
+                    {med.prescribed_by_user?.full_name && (
+                      <div className="text-[11px] text-text-muted/70 mt-1">Prescrit par {med.prescribed_by_user.full_name}</div>
+                    )}
+                    {med.notes && <div className="text-[12px] italic text-text-muted mt-1">{med.notes}</div>}
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => toggleMedication(med.id)} title={med.is_active ? 'Arrêter' : 'Réactiver'}
+                      className="p-1.5 rounded-lg bg-transparent border-none cursor-pointer text-text-muted hover:text-primary hover:bg-primary-light transition-colors">
+                      {med.is_active ? <X size={15} /> : <CheckSquare size={15} />}
+                    </button>
+                    <button onClick={() => deleteMedication(med.id)} title="Supprimer"
+                      className="p-1.5 rounded-lg bg-transparent border-none cursor-pointer text-text-muted hover:text-red-600 hover:bg-red-50 transition-colors">
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add medication form */}
+            <div className="bg-white rounded-[16px] border border-border shadow-sm overflow-hidden">
+              <button onClick={() => setMedFormOpen(o => !o)}
+                className="w-full flex justify-between items-center px-5 py-4 cursor-pointer bg-transparent border-none text-left hover:bg-slate-50 transition-colors">
+                <span className="font-bold text-[14px] text-text-dark flex items-center gap-2">
+                  <Plus size={16} className="text-primary" /> Ajouter un traitement
+                </span>
+                <span className="text-text-muted text-sm">{medFormOpen ? '▲' : '▼'}</span>
+              </button>
+              {medFormOpen && (
+                <div className="px-5 pb-5 border-t border-border">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 mb-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[12px] font-bold text-text-dark mb-1">Médicament *</label>
+                      <input value={medForm.name} onChange={e => setMedForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder="Ex : Amoxicilline"
+                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-text-dark mb-1">Dosage</label>
+                      <input value={medForm.dosage} onChange={e => setMedForm(p => ({ ...p, dosage: e.target.value }))}
+                        placeholder="Ex : 500mg"
+                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-text-dark mb-1">Fréquence</label>
+                      <input value={medForm.frequency} onChange={e => setMedForm(p => ({ ...p, frequency: e.target.value }))}
+                        placeholder="Ex : 3x/jour"
+                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-text-dark mb-1">Début (J+)</label>
+                      <input type="number" min="0" value={medForm.startDay} onChange={e => setMedForm(p => ({ ...p, startDay: Number(e.target.value) }))}
+                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-text-dark mb-1">Fin (J+, optionnel)</label>
+                      <input type="number" min="0" value={medForm.endDay} onChange={e => setMedForm(p => ({ ...p, endDay: e.target.value }))}
+                        placeholder="Vide = indéfini"
+                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[12px] font-bold text-text-dark mb-1">Notes (optionnel)</label>
+                      <input value={medForm.notes} onChange={e => setMedForm(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="Instructions particulières..."
+                        className="w-full border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setMedFormOpen(false)}
+                      className="px-4 py-2 rounded-xl text-sm font-bold text-text-muted border border-border bg-white cursor-pointer hover:bg-slate-50 transition-colors">
+                      Annuler
+                    </button>
+                    <button
+                      disabled={!medForm.name.trim() || medSaving}
+                      onClick={async () => {
+                        setMedSaving(true);
+                        const { error } = await addMedication({
+                          patientId: currentPatient.id,
+                          name: medForm.name,
+                          dosage: medForm.dosage,
+                          frequency: medForm.frequency,
+                          startDay: medForm.startDay,
+                          endDay: medForm.endDay ? Number(medForm.endDay) : null,
+                          notes: medForm.notes,
+                        });
+                        setMedSaving(false);
+                        if (error) { toast('Erreur lors de l\'ajout.', 'error'); }
+                        else { setMedForm({ name: '', dosage: '', frequency: '', startDay: 0, endDay: '', notes: '' }); setMedFormOpen(false); toast('Traitement ajouté.', 'success'); }
+                      }}
+                      className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-primary hover:bg-primary-dark border-none cursor-pointer disabled:opacity-50 transition-colors shadow-sm flex items-center gap-1.5">
+                      <Plus size={15} /> {medSaving ? 'Ajout...' : 'Ajouter'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp } from 'lucide-react';
+import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp, FolderOpen, X, ZapIcon, Pill } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import PainChart from '../components/PainChart';
 import { supabase } from '../lib/supabase';
@@ -25,6 +25,7 @@ export default function PatientPortalAuth() {
   const [messages, setMessages] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [painScores, setPainScores] = useState([]);
+  const [medications, setMedications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks');
   const [messageInput, setMessageInput] = useState('');
@@ -32,6 +33,17 @@ export default function PatientPortalAuth() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [submittingPain, setSubmittingPain] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageSendError, setMessageSendError] = useState(null);
+
+  // ─── Webcam (desktop camera) ───
+  const [showWebcam, setShowWebcam] = useState(false);
+  const [webcamReady, setWebcamReady] = useState(false);
+  const [webcamError, setWebcamError] = useState(null);
+  const webcamRef = useRef(null);
+  const webcamStreamRef = useRef(null);
+  const captureCanvasRef = useRef(null);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
   // Check-in quotidien étendu
   const [checkinStep, setCheckinStep] = useState(1); // 1=douleur, 2=symptômes
   const [selectedScore, setSelectedScore] = useState(null);
@@ -60,10 +72,10 @@ export default function PatientPortalAuth() {
       setPatient(patientData);
 
       // Fetch related data in parallel
-      const [tasksRes, messagesRes, photosRes, painRes] = await Promise.all([
+      const [tasksRes, messagesRes, photosRes, painRes, medsRes] = await Promise.all([
         supabase
           .from('tasks')
-          .select('*')
+          .select('*, done_by_user:done_by(full_name), assigned_by_user:assigned_by(full_name)')
           .eq('patient_id', patientData.id)
           .order('sort_order', { ascending: true }),
         supabase
@@ -79,10 +91,21 @@ export default function PatientPortalAuth() {
         supabase
           .from('pain_scores')
           .select('*')
+          .eq('patient_id', patientData.id),
+        supabase
+          .from('medications')
+          .select('*, prescribed_by_user:prescribed_by(full_name)')
           .eq('patient_id', patientData.id)
+          .eq('is_active', true)
+          .order('start_day', { ascending: true }),
       ]);
 
-      setTasks(tasksRes.data || []);
+      setMedications(medsRes.data || []);
+      setTasks((tasksRes.data || []).map(t => ({
+        ...t,
+        done_by_name: t.done_by_user?.full_name || null,
+        assigned_by_name: t.assigned_by_user?.full_name || (!t.patient_can_check ? 'Votre équipe soignante' : null),
+      })));
       setMessages(messagesRes.data || []);
       setPhotos(photosRes.data || []);
       setPainScores(painRes.data || []);
@@ -227,49 +250,54 @@ export default function PatientPortalAuth() {
 
   // ─── Send message ───
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !patient) return;
+    if (!messageInput.trim() || !patient || isSendingMessage) return;
 
+    const tempId = `temp_${Date.now()}`;
+    const text = messageInput.trim();
     const newMessage = {
       patient_id: patient.id,
       clinic_id: patient.clinic_id,
       sender_type: 'patient',
       sender_id: patient.id,
-      content: messageInput.trim(),
+      content: text,
       is_read: false,
     };
 
+    setIsSendingMessage(true);
+    setMessageSendError(null);
     // Optimistic update
-    setMessages(prev => [...prev, { ...newMessage, id: `temp_${Date.now()}`, created_at: new Date().toISOString() }]);
+    setMessages(prev => [...prev, { ...newMessage, id: tempId, created_at: new Date().toISOString() }]);
     setMessageInput('');
 
     const { error } = await supabase.from('messages').insert(newMessage);
 
     if (error) {
-      console.error('[PatientPortalAuth] Send message error:', error);
-      fetchData(); // Rollback
+      console.error('[PatientPortalAuth] Send message error:', error.code, error.message);
+      // Roll back only the temp message, keep input restored
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setMessageInput(text);
+      setMessageSendError('Échec de l\'envoi. Vérifiez votre connexion et réessayez.');
+      setTimeout(() => setMessageSendError(null), 5000);
     } else {
-      // Push alert
-      await supabase.from('alerts').insert({
+      // Notify staff (fire-and-forget, don't block on error)
+      supabase.from('alerts').insert({
         clinic_id: patient.clinic_id,
         patient_id: patient.id,
         type: 'message',
         title: 'Nouveau Message Patient',
         message: `${patient.full_name.split(' ')[0]} vous a envoyé un message.`
-      });
+      }).catch(() => {});
     }
+    setIsSendingMessage(false);
   };
 
-  // ─── Upload photo ───
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !patient) return;
-
+  // ─── Upload photo (accepts File, Blob, or input event) ───
+  const uploadPhoto = async (fileOrBlob) => {
+    if (!fileOrBlob || !patient) return;
     setIsUploading(true);
     setUploadSuccess(false);
-
     try {
-      // Compress image client-side (max 1MB, JPEG 0.8)
-      const compressed = await compressImage(file, 1024 * 1024, 0.8);
+      const compressed = await compressImage(fileOrBlob, 1024 * 1024, 0.8);
 
       // Calculate jour post-op
       const surgeryDate = new Date(patient.surgery_date);
@@ -320,6 +348,55 @@ export default function PatientPortalAuth() {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) uploadPhoto(file);
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
+
+  // ─── Webcam (desktop only) ───
+  const openWebcam = async () => {
+    setWebcamError(null);
+    setWebcamReady(false);
+    setShowWebcam(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      webcamStreamRef.current = stream;
+      if (webcamRef.current) {
+        webcamRef.current.srcObject = stream;
+        webcamRef.current.onloadedmetadata = () => setWebcamReady(true);
+      }
+    } catch (err) {
+      setWebcamError('Impossible d\'accéder à la caméra. Vérifiez les permissions du navigateur.');
+    }
+  };
+
+  const closeWebcam = () => {
+    if (webcamStreamRef.current) {
+      webcamStreamRef.current.getTracks().forEach(t => t.stop());
+      webcamStreamRef.current = null;
+    }
+    setShowWebcam(false);
+    setWebcamReady(false);
+    setWebcamError(null);
+  };
+
+  const captureWebcamPhoto = () => {
+    const video = webcamRef.current;
+    const canvas = captureCanvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(blob => {
+      if (blob) {
+        closeWebcam();
+        uploadPhoto(blob);
+      }
+    }, 'image/jpeg', 0.9);
   };
 
   // ─── Logout ───
@@ -453,10 +530,38 @@ export default function PatientPortalAuth() {
             </div>
           </div>
 
+          {/* ─── Unread messages banner ─── */}
+          {messages.filter(m => m.sender_type !== 'patient' && !m.is_read).length > 0 && activeTab !== 'messages' && (
+            <motion.button
+              initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+              onClick={() => setActiveTab('messages')}
+              className="w-full mb-4 flex items-center gap-3 bg-primary text-white px-4 py-3.5 rounded-[16px] shadow-button border-none cursor-pointer text-left hover:bg-primary-dark transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <MessageCircle size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-[14px]">
+                  {messages.filter(m => m.sender_type !== 'patient' && !m.is_read).length === 1
+                    ? 'Nouveau message de votre équipe soignante'
+                    : `${messages.filter(m => m.sender_type !== 'patient' && !m.is_read).length} nouveaux messages de votre équipe`}
+                </div>
+                <div className="text-[12px] text-white/80 font-medium truncate">
+                  {(() => {
+                    const latest = [...messages].filter(m => m.sender_type !== 'patient' && !m.is_read).slice(-1)[0];
+                    return latest ? latest.content : '';
+                  })()}
+                </div>
+              </div>
+              <span className="text-white/70 text-lg font-light">›</span>
+            </motion.button>
+          )}
+
           {/* Tabs */}
           <div className="flex gap-2 mb-6 flex-wrap">
             {[
               { id: 'tasks', icon: <Check size={20} />, label: 'Tâches' },
+              { id: 'traitements', icon: <Pill size={20} />, label: 'Traitements', badge: medications.length },
               { id: 'photos', icon: <Camera size={20} />, label: 'Photos' },
               { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages',
                 badge: messages.filter(m => m.sender_type !== 'patient' && !m.is_read).length },
@@ -641,10 +746,22 @@ export default function PatientPortalAuth() {
                               ${task.done ? 'bg-status-normal-text' : 'bg-slate-200'}`}>
                               {task.done && '✓'}
                             </div>
-                            <div className={`flex-1 font-semibold text-[13px] ${task.done ? 'line-through text-text-dark' : 'text-text-dark'}`}>
-                              {task.label}
-                              {task.jour_post_op_ref != null && (
-                                <span className="inline-block px-1.5 py-0.5 ml-2 bg-slate-100 text-[10px] rounded text-slate-500 font-bold">J+{task.jour_post_op_ref}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-semibold text-[13px] ${task.done ? 'line-through text-text-muted' : 'text-text-dark'}`}>
+                                {task.label}
+                                {task.jour_post_op_ref != null && (
+                                  <span className="inline-block px-1.5 py-0.5 ml-2 bg-slate-100 text-[10px] rounded text-slate-500 font-bold">J+{task.jour_post_op_ref}</span>
+                                )}
+                              </div>
+                              {task.done && task.done_by_name && (
+                                <div className="text-[11px] text-status-normal font-semibold mt-0.5">
+                                  ✓ Validé par {task.done_by_name}
+                                </div>
+                              )}
+                              {!task.done && task.assigned_by_name && (
+                                <div className="text-[11px] text-text-muted font-medium mt-0.5">
+                                  Recommandé par {task.assigned_by_name}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -657,33 +774,155 @@ export default function PatientPortalAuth() {
             </motion.div>
           )}
 
+          {/* Traitements Tab */}
+          {activeTab === 'traitements' && (
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              <div className="mb-4">
+                <h3 className="text-[16px] font-bold text-text-dark mb-1 flex items-center gap-2">
+                  <Pill size={18} className="text-primary" /> Vos traitements en cours
+                </h3>
+                <p className="text-[13px] text-text-muted font-medium">Médicaments prescrits par votre équipe soignante pour votre suivi post-opératoire.</p>
+              </div>
+
+              {medications.length === 0 ? (
+                <div className="text-center py-10 bg-white rounded-[20px] border border-border shadow-sm">
+                  <Pill size={36} className="mx-auto mb-3 text-text-muted opacity-30" />
+                  <p className="text-text-muted font-medium text-sm">Aucun traitement prescrit pour le moment.</p>
+                  <p className="text-text-muted/70 text-[12px] mt-1">Contactez votre équipe soignante si nécessaire.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {medications.map(med => (
+                    <div key={med.id} className="bg-white rounded-[16px] border border-primary/15 shadow-sm p-4 flex items-start gap-3.5">
+                      <div className="w-10 h-10 rounded-xl bg-primary-light text-primary flex items-center justify-center shrink-0">
+                        <Pill size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-[15px] text-text-dark">{med.name}</div>
+                        <div className="text-[13px] text-text-muted font-medium mt-0.5 flex flex-wrap gap-x-3">
+                          {med.dosage && <span>{med.dosage}</span>}
+                          {med.frequency && <span>· {med.frequency}</span>}
+                          {med.end_day != null && <span>· Jusqu'à J+{med.end_day}</span>}
+                        </div>
+                        {med.prescribed_by_user?.full_name && (
+                          <div className="text-[11px] text-text-muted/70 mt-1 font-medium">
+                            Prescrit par {med.prescribed_by_user.full_name}
+                          </div>
+                        )}
+                        {med.notes && (
+                          <div className="text-[12px] text-text-muted italic mt-1.5 bg-slate-50 px-3 py-1.5 rounded-lg">
+                            {med.notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 p-4 bg-primary-light/50 rounded-[16px] border border-primary/10">
+                <p className="text-[13px] text-primary-dark font-semibold text-center">
+                  En cas de doute sur votre traitement, contactez votre équipe soignante via l'onglet Messages.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Photos Tab */}
           {activeTab === 'photos' && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-              <div className="bg-white rounded-[20px] p-8 text-center border-2 border-dashed border-primary-light mb-6 shadow-sm">
-                <div className={`w-[60px] h-[60px] rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-300
+              <div className="bg-white rounded-[20px] p-6 border-2 border-dashed border-primary-light mb-6 shadow-sm">
+                <div className={`w-[54px] h-[54px] rounded-full flex items-center justify-center mx-auto mb-3 transition-all duration-300
                   ${uploadSuccess ? 'bg-status-normal-bg text-status-normal' : 'bg-primary-light text-primary'}`}>
-                  {isUploading ? <Loader2 size={28} className="animate-spin" /> : (uploadSuccess ? <Check size={28} /> : <Camera size={28} />)}
+                  {isUploading ? <Loader2 size={26} className="animate-spin" /> : (uploadSuccess ? <Check size={26} /> : <Camera size={26} />)}
                 </div>
-                <h3 className="text-[16px] mb-2 font-bold text-text-dark">
+                <h3 className="text-[16px] mb-1.5 font-bold text-text-dark text-center">
                   {uploadSuccess ? 'Photo envoyée avec succès !' : 'Envoyer une nouvelle photo'}
                 </h3>
-                <p className="text-[13px] text-text-muted mb-5 leading-relaxed font-medium">
+                <p className="text-[13px] text-text-muted mb-5 leading-relaxed font-medium text-center">
                   Photographiez la zone concernée pour permettre à votre chirurgien de contrôler l'évolution.
                 </p>
-                <label className={`block w-full py-3 px-6 text-white border-none rounded-xl font-bold text-[14px] transition-all shadow-sm text-center
-                  ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}>
-                  {isUploading ? 'Envoi en cours…' : 'Prendre ou sélectionner une photo'}
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    disabled={isUploading}
-                    className="hidden"
-                  />
-                </label>
+
+                {/* Two distinct buttons */}
+                <div className="flex gap-3">
+                  {/* Gallery — always a plain file picker */}
+                  <label className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-[14px] transition-all border-2 text-center
+                    ${isUploading ? 'border-slate-200 text-slate-400 cursor-not-allowed bg-slate-50' : 'border-primary text-primary hover:bg-primary-light cursor-pointer'}`}>
+                    <FolderOpen size={18} /> Galerie
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handlePhotoUpload}
+                      disabled={isUploading}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Camera — native on mobile, WebRTC modal on desktop */}
+                  {isMobile ? (
+                    <label className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-[14px] transition-all text-white text-center
+                      ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}>
+                      <Camera size={18} /> Caméra
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        capture="environment"
+                        onChange={handlePhotoUpload}
+                        disabled={isUploading}
+                        className="hidden"
+                      />
+                    </label>
+                  ) : (
+                    <button
+                      onClick={openWebcam}
+                      disabled={isUploading}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-[14px] transition-all text-white border-none
+                        ${isUploading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark cursor-pointer shadow-button'}`}>
+                      <Camera size={18} /> Caméra
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Webcam modal (desktop only) */}
+              {showWebcam && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                  <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                      <span className="font-bold text-text-dark flex items-center gap-2"><Camera size={18} className="text-primary" /> Prendre une photo</span>
+                      <button onClick={closeWebcam} className="text-text-muted hover:text-text-dark bg-transparent border-none cursor-pointer p-1">
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="relative bg-black aspect-video flex items-center justify-center">
+                      <video ref={webcamRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                      {!webcamReady && !webcamError && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Loader2 size={32} className="animate-spin text-white" />
+                        </div>
+                      )}
+                      {webcamError && (
+                        <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
+                          <p className="text-white text-sm font-medium bg-black/60 px-4 py-3 rounded-xl">{webcamError}</p>
+                        </div>
+                      )}
+                    </div>
+                    <canvas ref={captureCanvasRef} className="hidden" />
+                    <div className="px-5 py-4 flex justify-end gap-3">
+                      <button onClick={closeWebcam} className="px-5 py-2.5 rounded-xl font-bold text-sm text-text-muted hover:text-text-dark border border-border bg-white cursor-pointer transition-colors">
+                        Annuler
+                      </button>
+                      <button
+                        onClick={captureWebcamPhoto}
+                        disabled={!webcamReady || !!webcamError}
+                        className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-primary hover:bg-primary-dark border-none cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-sm transition-colors">
+                        <ZapIcon size={16} /> Capturer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               <h3 className="text-[16px] mb-4 font-bold text-text-dark">Historique des envois</h3>
               {photos.length === 0 ? (
@@ -732,20 +971,28 @@ export default function PatientPortalAuth() {
                   ))}
                 <div ref={messagesEndRef} />
               </div>
+              {messageSendError && (
+                <div className="mb-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-[13px] font-semibold flex items-center gap-2">
+                  <AlertCircle size={15} /> {messageSendError}
+                </div>
+              )}
               <div className="flex gap-2.5 bg-white p-2.5 rounded-[20px] border border-border shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
                 <input
                   type="text"
                   value={messageInput}
                   onChange={e => setMessageInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSendMessage(); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && !isSendingMessage) handleSendMessage(); }}
                   placeholder="Votre message..."
-                  className="flex-1 py-2.5 px-3.5 rounded-xl border-none text-[15px] bg-transparent outline-none font-medium"
+                  disabled={isSendingMessage}
+                  className="flex-1 py-2.5 px-3.5 rounded-xl border-none text-[15px] bg-transparent outline-none font-medium disabled:opacity-60"
                 />
                 <button
+                  type="button"
                   onClick={handleSendMessage}
-                  className="bg-primary hover:bg-primary-dark text-white border-none w-11 h-11 rounded-xl cursor-pointer flex items-center justify-center transition-colors shadow-sm shrink-0"
+                  disabled={isSendingMessage || !messageInput.trim()}
+                  className="bg-primary hover:bg-primary-dark text-white border-none w-11 h-11 rounded-xl cursor-pointer flex items-center justify-center transition-colors shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Send size={18} />
+                  {isSendingMessage ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                 </button>
               </div>
             </motion.div>
