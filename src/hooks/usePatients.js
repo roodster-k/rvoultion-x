@@ -464,7 +464,7 @@ export default function usePatients() {
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email: patient.email,
       options: {
-        emailRedirectTo: `${window.location.origin}/#patient`,
+        emailRedirectTo: `${window.location.origin}/patient/activate`,
         shouldCreateUser: true,
       },
     });

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Mail, Menu } from 'lucide-react';
+import { Search, Mail, Menu, UserPlus } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import StatsCards from '../components/StatsCards';
 import PatientList from '../components/PatientList';
@@ -118,9 +118,17 @@ export default function NurseDashboard() {
                   <p className="text-text-muted font-medium text-sm">Recherchez et accédez à tous les dossiers patients de la clinique.</p>
                 </div>
               </div>
-              <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 min-w-[280px] shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-                <Search size={18} className="text-primary" />
-                <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher par nom, intervention..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" autoFocus />
+              <div className="flex gap-2.5 items-center">
+                <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 min-w-[280px] shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+                  <Search size={18} className="text-primary" />
+                  <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher par nom, intervention..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" autoFocus />
+                </div>
+                <button
+                  onClick={() => setIsAddPatientOpen(true)}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold text-sm py-2.5 px-4 rounded-xl shadow-button transition-all border-none cursor-pointer whitespace-nowrap"
+                >
+                  <UserPlus size={16} /> Nouveau patient
+                </button>
               </div>
             </header>
             <PatientList
@@ -155,6 +163,12 @@ export default function NurseDashboard() {
                   <Search size={18} className="text-primary" />
                   <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher patient..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" />
                 </div>
+                <button
+                  onClick={() => setIsAddPatientOpen(true)}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold text-sm py-2.5 px-4 rounded-xl shadow-button transition-all border-none cursor-pointer whitespace-nowrap"
+                >
+                  <UserPlus size={16} /> Nouveau patient
+                </button>
               </div>
             </header>
 

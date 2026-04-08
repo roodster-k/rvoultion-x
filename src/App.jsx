@@ -4,6 +4,7 @@ import NurseDashboard from './pages/NurseDashboard.jsx';
 import PatientPortal from './pages/PatientPortal.jsx';
 import PatientPortalAuth from './pages/PatientPortalAuth.jsx';
 import PatientActivation from './pages/PatientActivation.jsx';
+import StaffActivation from './pages/StaffActivation.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignupClinic from './pages/SignupClinic.jsx';
 import LandingPage from './pages/LandingPage.jsx';
@@ -64,6 +65,9 @@ function App() {
           <Route path="/patient/:token" element={<PatientPortal />} />
           <Route path="/patient/activate" element={<PatientActivation />} />
           <Route path="/patient/portal" element={<PatientPortalAuth />} />
+
+          {/* ─── Staff activation (post-invitation email link) ─── */}
+          <Route path="/staff/activate" element={<StaffActivation />} />
 
           {/* ─── Auth-dependent routes ─── */}
           {user ? (
