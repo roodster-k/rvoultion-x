@@ -25,7 +25,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     storageKey: 'postop-auth-token',
-    flowType: 'pkce',
-    lockAcquisitionTimeout: 0 // Disable locking API to prevent stalls in production
+    // Note: lockAcquisitionTimeout removed — value of 0 caused token refresh
+    // to fail immediately under any lock contention, producing 3-5min disconnects.
+    // flowType defaults to 'pkce'; keeping default avoids implicit flow issues.
   }
 });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp, FolderOpen, X, ZapIcon, Pill } from 'lucide-react';
+import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send, LogOut, TrendingUp, FolderOpen, X, ZapIcon, Pill, Bell, CalendarDays, MapPin, Clock } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import PainChart from '../components/PainChart';
 import { supabase } from '../lib/supabase';
@@ -26,6 +26,7 @@ export default function PatientPortalAuth() {
   const [photos, setPhotos] = useState([]);
   const [painScores, setPainScores] = useState([]);
   const [medications, setMedications] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks');
   const [messageInput, setMessageInput] = useState('');
@@ -73,7 +74,7 @@ export default function PatientPortalAuth() {
       setPatient(patientData);
 
       // Fetch related data in parallel
-      const [tasksRes, messagesRes, photosRes, painRes, medsRes] = await Promise.all([
+      const [tasksRes, messagesRes, photosRes, painRes, medsRes, apptsRes] = await Promise.all([
         supabase
           .from('tasks')
           .select('*, done_by_user:done_by(full_name), assigned_by_user:assigned_by(full_name)')
@@ -99,9 +100,15 @@ export default function PatientPortalAuth() {
           .eq('patient_id', patientData.id)
           .eq('is_active', true)
           .order('start_day', { ascending: true }),
+        supabase
+          .from('appointments')
+          .select('*')
+          .eq('patient_id', patientData.id)
+          .order('scheduled_at', { ascending: true }),
       ]);
 
       setMedications(medsRes.data || []);
+      setAppointments(apptsRes.data || []);
       setTasks((tasksRes.data || []).map(t => ({
         ...t,
         done_by_name: t.done_by_user?.full_name || null,
@@ -364,7 +371,11 @@ export default function PatientPortalAuth() {
     setWebcamReady(false);
     setShowWebcam(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      // ideal facingMode — works on both mobile (rear cam) and desktop (any cam)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      });
       webcamStreamRef.current = stream;
       if (webcamRef.current) {
         webcamRef.current.srcObject = stream;
@@ -563,6 +574,8 @@ export default function PatientPortalAuth() {
             {[
               { id: 'tasks', icon: <Check size={20} />, label: 'Tâches' },
               { id: 'traitements', icon: <Pill size={20} />, label: 'Traitements', badge: medications.length },
+              { id: 'rappels', icon: <Bell size={20} />, label: 'Rappels',
+                badge: appointments.filter(a => !a.is_done && new Date(a.scheduled_at) > new Date()).length },
               { id: 'photos', icon: <Camera size={20} />, label: 'Photos' },
               { id: 'messages', icon: <MessageCircle size={20} />, label: 'Messages',
                 badge: messages.filter(m => m.sender_type !== 'patient' && !m.is_read).length },
@@ -824,6 +837,98 @@ export default function PatientPortalAuth() {
               <div className="mt-6 p-4 bg-primary-light/50 rounded-[16px] border border-primary/10">
                 <p className="text-[13px] text-primary-dark font-semibold text-center">
                   En cas de doute sur votre traitement, contactez votre équipe soignante via l'onglet Messages.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Rappels Tab */}
+          {activeTab === 'rappels' && (
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+              {/* Upcoming appointments */}
+              <div className="mb-4">
+                <h3 className="text-[15px] font-bold text-text-dark mb-3 flex items-center gap-2">
+                  <CalendarDays size={18} className="text-primary" /> Prochains rendez-vous
+                </h3>
+                {appointments.filter(a => !a.is_done && new Date(a.scheduled_at) > new Date()).length === 0 ? (
+                  <div className="bg-white rounded-[16px] p-6 border border-border text-center shadow-sm">
+                    <CalendarDays size={32} className="text-primary/30 mx-auto mb-3" />
+                    <p className="text-text-muted text-sm font-medium">Aucun rendez-vous à venir.</p>
+                    <p className="text-text-muted text-xs mt-1">Votre équipe soignante planifiera vos prochains RDV ici.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {appointments
+                      .filter(a => !a.is_done && new Date(a.scheduled_at) > new Date())
+                      .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+                      .map(appt => {
+                        const dt = new Date(appt.scheduled_at);
+                        const isToday = dt.toDateString() === new Date().toDateString();
+                        const isTomorrow = dt.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                        const dayLabel = isToday ? 'Aujourd\'hui' : isTomorrow ? 'Demain' : dt.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' });
+                        return (
+                          <div key={appt.id} className={`bg-white rounded-[16px] p-4 border shadow-sm ${isToday ? 'border-primary/40 bg-primary-light/20' : 'border-border'}`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isToday ? 'bg-primary text-white' : 'bg-primary-light text-primary'}`}>
+                                <CalendarDays size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-text-dark text-[14px]">{appt.title}</div>
+                                <div className="flex items-center gap-1.5 text-[12px] text-text-muted mt-1 font-medium">
+                                  <Clock size={12} />
+                                  <span className={isToday ? 'text-primary font-bold' : ''}>{dayLabel}</span>
+                                  <span>·</span>
+                                  <span>{dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                {appt.location && (
+                                  <div className="flex items-center gap-1.5 text-[12px] text-text-muted mt-0.5">
+                                    <MapPin size={12} />
+                                    <span>{appt.location}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {isToday && (
+                                <span className="text-[10px] font-bold bg-primary text-white px-2 py-1 rounded-full shrink-0">Aujourd'hui</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              {/* Past appointments */}
+              {appointments.filter(a => a.is_done || new Date(a.scheduled_at) <= new Date()).length > 0 && (
+                <div>
+                  <h3 className="text-[15px] font-bold text-text-dark mb-3 flex items-center gap-2">
+                    <Check size={18} className="text-text-muted" /> Rendez-vous passés
+                  </h3>
+                  <div className="space-y-2">
+                    {appointments
+                      .filter(a => a.is_done || new Date(a.scheduled_at) <= new Date())
+                      .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at))
+                      .slice(0, 5)
+                      .map(appt => {
+                        const dt = new Date(appt.scheduled_at);
+                        return (
+                          <div key={appt.id} className="bg-white rounded-[14px] p-3.5 border border-border shadow-sm opacity-60">
+                            <div className="flex items-center gap-2">
+                              <Check size={14} className="text-emerald-500 shrink-0" />
+                              <span className="font-semibold text-[13px] text-text-dark flex-1">{appt.title}</span>
+                              <span className="text-[11px] text-text-muted">{dt.toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                            {appt.location && <div className="text-[11px] text-text-muted ml-6 mt-0.5">{appt.location}</div>}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-5 p-4 bg-primary-light/50 rounded-[16px] border border-primary/10">
+                <p className="text-[13px] text-primary-dark font-semibold text-center">
+                  Vos rendez-vous sont planifiés par votre équipe soignante. Contactez-les via Messages pour toute question.
                 </p>
               </div>
             </motion.div>

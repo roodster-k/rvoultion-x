@@ -86,6 +86,19 @@ function ClinicTab({ profile, clinicSettings, refreshProfile }) {
     }
   }, [clinicSettings]);
 
+  const applyPrimaryColor = (hex) => {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return;
+    document.documentElement.style.setProperty('--color-primary', hex);
+    // Generate simple dark/light variants by adjusting brightness
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const dark = `rgb(${Math.round(r * 0.75)},${Math.round(g * 0.75)},${Math.round(b * 0.75)})`;
+    const light = `rgba(${r},${g},${b},0.12)`;
+    document.documentElement.style.setProperty('--color-primary-dark', dark);
+    document.documentElement.style.setProperty('--color-primary-light', light);
+  };
+
   const handleSave = async () => {
     setLoading(true);
     setMessage(null);
@@ -96,6 +109,7 @@ function ClinicTab({ profile, clinicSettings, refreshProfile }) {
         logo_url: formData.logo_url,
       }).eq('id', profile.clinic_id);
       if (error) throw error;
+      applyPrimaryColor(formData.primary_color);
       setMessage({ type: 'success', text: 'Paramètres mis à jour avec succès.' });
       await refreshProfile();
     } catch (err) {
@@ -108,17 +122,31 @@ function ClinicTab({ profile, clinicSettings, refreshProfile }) {
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // Validate file type
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'];
+    if (!allowed.includes(file.type)) {
+      setMessage({ type: 'error', text: 'Format non supporté. Utilisez PNG, JPEG, WebP ou SVG.' });
+      return;
+    }
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Fichier trop volumineux. Maximum 2 Mo.' });
+      return;
+    }
     try {
       setLoading(true);
-      const fileExt = file.name.split('.').pop();
-      const filePath = `clinics/${profile.clinic_id}_logo.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, file, { upsert: true });
+      const fileExt = file.name.split('.').pop().toLowerCase();
+      const filePath = `${profile.clinic_id}/logo.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('clinic-logos')
+        .upload(filePath, file, { upsert: true, contentType: file.type });
       if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+      const { data } = supabase.storage.from('clinic-logos').getPublicUrl(filePath);
       setFormData(prev => ({ ...prev, logo_url: data.publicUrl }));
       setMessage({ type: 'success', text: "Logo uploadé. N'oubliez pas de sauvegarder." });
     } catch (err) {
-      setMessage({ type: 'error', text: 'Erreur lors du téléchargement du logo.' });
+      console.error('[Logo upload]', err);
+      setMessage({ type: 'error', text: `Erreur : ${err.message || 'Téléchargement échoué.'}` });
     } finally {
       setLoading(false);
     }
@@ -140,9 +168,15 @@ function ClinicTab({ profile, clinicSettings, refreshProfile }) {
         <div>
           <label className="block text-sm font-bold text-text-dark mb-2">Couleur Primaire (Marque)</label>
           <div className="flex items-center gap-4">
-            <input type="color" value={formData.primary_color} onChange={e => setFormData({ ...formData, primary_color: e.target.value })}
+            <input type="color" value={formData.primary_color} onChange={e => {
+                setFormData({ ...formData, primary_color: e.target.value });
+                applyPrimaryColor(e.target.value);
+              }}
               className="w-14 h-14 rounded-xl cursor-pointer border-0 p-0" />
-            <input type="text" value={formData.primary_color} onChange={e => setFormData({ ...formData, primary_color: e.target.value })}
+            <input type="text" value={formData.primary_color} onChange={e => {
+                setFormData({ ...formData, primary_color: e.target.value });
+                applyPrimaryColor(e.target.value);
+              }}
               className="w-32 bg-surface-main border border-border rounded-xl px-4 py-3 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 text-sm text-text-dark uppercase" />
           </div>
         </div>
@@ -155,10 +189,11 @@ function ClinicTab({ profile, clinicSettings, refreshProfile }) {
               <div className="w-20 h-20 bg-surface-main rounded-xl border border-dashed border-border flex items-center justify-center text-text-muted text-xs text-center p-2">Aucun logo</div>
             )}
             <div>
-              <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" id="logo-upload" disabled={loading} />
+              <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" onChange={handleLogoUpload} className="hidden" id="logo-upload" disabled={loading} />
               <label htmlFor="logo-upload" className="cursor-pointer bg-primary-light text-primary hover:bg-primary-hover font-bold text-sm py-2 px-4 rounded-xl inline-flex items-center gap-2 transition-colors">
-                <Upload size={16} /> Parcourir...
+                <Upload size={16} /> {loading ? 'Upload...' : 'Parcourir...'}
               </label>
+              <p className="text-[11px] text-text-muted mt-2">PNG, JPEG, WebP ou SVG — max 2 Mo</p>
             </div>
           </div>
         </div>
@@ -507,7 +542,7 @@ function TeamTab({ profile, readOnly = false }) {
       const { data: signUpData, error: signUpError } = await tmpClient.auth.signUp({
         email: inviteForm.email.trim(),
         password: tempPassword,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: `${window.location.origin}/staff/activate` },
       });
 
       if (signUpError) throw signUpError;

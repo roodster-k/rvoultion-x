@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
         setPatientRecord(null);
         setClinicSettings(clinics);
         if (clinics?.primary_color)
-          document.documentElement.style.setProperty('--primary', clinics.primary_color);
+          document.documentElement.style.setProperty('--color-primary', clinics.primary_color);
         return;
       }
 
@@ -93,7 +93,7 @@ export function AuthProvider({ children }) {
         setProfile(null);
         setClinicSettings(clinics);
         if (clinics?.primary_color)
-          document.documentElement.style.setProperty('--primary', clinics.primary_color);
+          document.documentElement.style.setProperty('--color-primary', clinics.primary_color);
         return;
       }
 
@@ -175,7 +175,7 @@ export function AuthProvider({ children }) {
           setPatientRecord(null);
           setClinicSettings(null);
           setLoading(false);
-          document.documentElement.style.removeProperty('--primary');
+          document.documentElement.style.removeProperty('--color-primary');
         }
 
         if (mounted && !hasInitialized.current) {
@@ -218,7 +218,7 @@ export function AuthProvider({ children }) {
     setProfile(null);
     setPatientRecord(null);
     setClinicSettings(null);
-    document.documentElement.style.removeProperty('--primary');
+    document.documentElement.style.removeProperty('--color-primary');
   }, []);
 
   // ─── Refresh profile ───
