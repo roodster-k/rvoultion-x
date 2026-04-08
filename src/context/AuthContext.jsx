@@ -25,122 +25,90 @@ export function AuthProvider({ children }) {
 
   // ─── Fetch profile from `users` table (staff) or `patients` table (patient) ───
   const fetchProfile = useCallback(async (authUser) => {
-    if (!authUser) {
-      setLoading(false);
-      return;
-    }
-    
-    if (isFetchingProfile.current) {
-      // If already fetching, don't start a new one, 
-      // but the previous one will handle setting loading to false.
-      return;
-    }
+    if (!authUser) { setLoading(false); return; }
+    if (isFetchingProfile.current) return;
 
     isFetchingProfile.current = true;
-    console.log('[Auth] fetchProfile starting for:', authUser.email);
 
-    const withTimeout = (promise, ms = 30000) => {
-      return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`Query timeout after ${ms}ms`)), ms))
-      ]);
-    };
+    const withTimeout = (promise, ms = 8000) =>
+      Promise.race([promise, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
 
     try {
-      // Small initial delay to let Supabase locks settle
-      await new Promise(res => setTimeout(res, 500));
-
-      let staffProfile = null;
-      let staffError = null;
-      let retries = 3;
-
-      while (retries > 0 && !staffProfile) {
-        console.log(`[Auth] Fetching staff profile (Retry: ${3 - retries})...`);
-        const result = await withTimeout(
-          supabase
-            .from('users')
-            .select(`
-              *,
-              clinics (name, logo_url, primary_color)
-            `)
-            .eq('auth_user_id', authUser.id)
-            .maybeSingle()
-        );
-        staffProfile = result.data;
-        staffError = result.error;
-
-        if (!staffProfile && !staffError) {
-          console.warn('[Auth] Profile not found, retrying in 1s...');
-          await new Promise(res => setTimeout(res, 1000));
-          retries--;
-        } else {
-          break;
-        }
-      }
-
-      if (staffError) {
-        console.error('[Auth] Staff profile fetch error:', staffError);
-      }
-
-      if (staffProfile) {
-        console.log('[Auth] Staff profile found for clinic:', staffProfile.clinic_id);
-        const { clinics, ...restProfile } = staffProfile;
-        setProfile(restProfile);
-        setPatientRecord(null);
-        setClinicSettings(clinics);
-        
-        if (clinics && clinics.primary_color) {
-          console.log('[Auth] Applying clinic theme:', clinics.primary_color);
-          document.documentElement.style.setProperty('--primary', clinics.primary_color);
-        }
-        return;
-      }
-
-      // 2. Not a staff member — try patient
-      console.log('[Auth] No staff profile found, fetching patient profile...');
-      const { data: patientProfile, error: patientError } = await withTimeout(
+      // 1. Try staff profile first (no retry loop — fails fast)
+      const { data: staffProfile, error: staffError } = await withTimeout(
         supabase
-          .from('patients')
-          .select(`
-            *,
-            clinics (name, logo_url, primary_color)
-          `)
+          .from('users')
+          .select('*, clinics (name, logo_url, primary_color)')
           .eq('auth_user_id', authUser.id)
           .maybeSingle()
       );
 
-      if (patientError) {
-        console.error('[Auth] Patient profile fetch error:', patientError);
-      }
+      if (staffError) console.error('[Auth] Staff profile error:', staffError.message);
 
-      if (patientProfile) {
-        console.log('[Auth] Patient profile found.');
-        const { clinics, ...restPatient } = patientProfile;
-        setPatientRecord(restPatient);
-        setProfile(null);
+      if (staffProfile) {
+        const { clinics, ...rest } = staffProfile;
+        setProfile(rest);
+        setPatientRecord(null);
         setClinicSettings(clinics);
-
-        if (clinics && clinics.primary_color) {
+        if (clinics?.primary_color)
           document.documentElement.style.setProperty('--primary', clinics.primary_color);
-        }
         return;
       }
 
-      // 3. Auth exists but no profile in either table (normal during onboarding)
-      console.warn('[Auth] User authenticated but no profile found in DB:', authUser.email);
+      // 2. Try patient profile by auth_user_id
+      let { data: patientProfile, error: patientError } = await withTimeout(
+        supabase
+          .from('patients')
+          .select('*, clinics (name, logo_url, primary_color)')
+          .eq('auth_user_id', authUser.id)
+          .maybeSingle()
+      );
+
+      if (patientError) console.error('[Auth] Patient profile error:', patientError.message);
+
+      // 2b. Fallback: match by email (first OTP login — auth_user_id not linked yet)
+      if (!patientProfile && authUser.email) {
+        const { data: patientByEmail } = await withTimeout(
+          supabase
+            .from('patients')
+            .select('*, clinics (name, logo_url, primary_color)')
+            .eq('email', authUser.email)
+            .is('auth_user_id', null)
+            .maybeSingle()
+        );
+        if (patientByEmail) {
+          // Link auth_user_id for future logins
+          await supabase
+            .from('patients')
+            .update({ auth_user_id: authUser.id })
+            .eq('id', patientByEmail.id);
+          patientProfile = { ...patientByEmail, auth_user_id: authUser.id };
+          console.log('[Auth] Linked patient by email:', authUser.email);
+        }
+      }
+
+      if (patientProfile) {
+        const { clinics, ...rest } = patientProfile;
+        setPatientRecord(rest);
+        setProfile(null);
+        setClinicSettings(clinics);
+        if (clinics?.primary_color)
+          document.documentElement.style.setProperty('--primary', clinics.primary_color);
+        return;
+      }
+
+      // 3. Authenticated but no DB profile yet (signup in progress)
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
 
     } catch (err) {
-      console.error('[Auth] Profile fetch exception:', err.message || err);
+      console.error('[Auth] fetchProfile error:', err.message);
       setProfile(null);
       setPatientRecord(null);
       setClinicSettings(null);
     } finally {
-      console.log('[Auth] fetchProfile finished.');
       isFetchingProfile.current = false;
-      // CRITICAL: Ensure loading is disabled after profile fetch attempt
       setLoading(false);
     }
   }, []);
@@ -200,7 +168,7 @@ export function AuthProvider({ children }) {
             setUser(session.user);
           }
           await fetchProfile(session.user);
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED' || !session) {
           currentUserIdRef.current = null;
           setUser(null);
           setProfile(null);

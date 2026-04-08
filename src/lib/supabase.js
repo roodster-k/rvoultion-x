@@ -16,6 +16,8 @@ const customStorage = {
   removeItem: (key) => typeof window !== 'undefined' ? window.localStorage.removeItem(key) : null,
 };
 
+export { supabaseUrl, supabaseAnonKey };
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: customStorage,

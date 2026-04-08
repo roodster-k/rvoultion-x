@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2, Pill, X } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { useData } from '../context/DataContext';
 import { useAlertContext } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
@@ -27,6 +28,33 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]); // max 2 photo ids
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const printReportRef = useRef(null);
+
+  const handleExportPDF = async () => {
+    const element = printReportRef.current;
+    if (!element) return;
+    setExportingPdf(true);
+    try {
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: `PostOp_${currentPatient.name.replace(/\s+/g, '_')}_rapport.pdf`,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        })
+        .from(element)
+        .save();
+    } catch (err) {
+      console.error('[PDF] Export error:', err);
+      // Graceful fallback to browser print
+      window.print();
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   // ─── Appointments ───
   const { getPatientAppointments, addAppointment, toggleAppointment, deleteAppointment } = useAppointments();
@@ -154,10 +182,11 @@ export default function PatientDetail({ currentPatient, onBack }) {
         </button>
         <div className="flex gap-2">
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 text-[13px] font-semibold text-text-muted bg-white hover:bg-slate-50 border border-border py-2 px-4 rounded-xl transition-colors shadow-sm"
+            onClick={handleExportPDF}
+            disabled={exportingPdf}
+            className="flex items-center gap-1.5 text-[13px] font-semibold text-text-muted bg-white hover:bg-slate-50 border border-border py-2 px-4 rounded-xl transition-colors shadow-sm disabled:opacity-60"
           >
-            <Printer size={15} /> Exporter PDF
+            <Printer size={15} /> {exportingPdf ? 'Génération...' : 'Exporter PDF'}
           </button>
           <Link to={`/patient/${currentPatient.token}`} target="_blank" className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-dark py-2 px-4 rounded-xl no-underline transition-colors shadow-sm">
             Simuler App Patient ↗
@@ -165,8 +194,8 @@ export default function PatientDetail({ currentPatient, onBack }) {
         </div>
       </div>
 
-      {/* Print-only report */}
-      <PrintReport patient={currentPatient} />
+      {/* Print-only report (hidden in UI, used for PDF export) */}
+      <PrintReport patient={currentPatient} ref={printReportRef} />
 
       {/* Patient Info Card */}
       <div className="card p-7 mb-5 shadow-sm">
@@ -790,7 +819,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
 }
 
 // ─── Print-only patient report ───
-function PrintReport({ patient }) {
+const PrintReport = forwardRef(function PrintReport({ patient }, ref) {
   const notes = Array.isArray(patient.notes) ? patient.notes : [];
   const doneTasks = patient.checklist?.filter(t => t.done) || [];
   const pendingTasks = patient.checklist?.filter(t => !t.done) || [];
@@ -799,7 +828,7 @@ function PrintReport({ patient }) {
     : null;
 
   return (
-    <div className="print-report" style={{ fontFamily: 'serif' }}>
+    <div ref={ref} className="print-report" style={{ fontFamily: 'serif' }}>
       {/* Header */}
       <div style={{ borderBottom: '2px solid #0f5f54', paddingBottom: 12, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
@@ -925,7 +954,7 @@ function PrintReport({ patient }) {
       </div>
     </div>
   );
-}
+});
 
 // ─── Helper: Photo card with signed URL ───
 function PhotoCard({ photo }) {

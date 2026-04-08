@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Save, Upload, Plus, Trash2, Edit2, X, Check, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { interventionLabels } from '../data/constants';
+import { createClient } from '@supabase/supabase-js';
 
 const roleLabels = {
   clinic_admin: 'Administrateur',
@@ -468,7 +469,8 @@ function TeamTab({ profile, readOnly = false }) {
     setInviting(true);
     setMessage(null);
 
-    const { data, error } = await supabase.functions.invoke('create-staff', {
+    // Try Edge Function first
+    const { data: fnData, error: fnError } = await supabase.functions.invoke('create-staff', {
       body: {
         full_name: inviteForm.full_name.trim(),
         email: inviteForm.email.trim(),
@@ -477,16 +479,68 @@ function TeamTab({ profile, readOnly = false }) {
       },
     });
 
-    setInviting(false);
-    if (error) {
-      setMessage({ type: 'error', text: error.message || "Erreur lors de l'invitation." });
-    } else {
+    if (!fnError) {
+      setInviting(false);
       setMessage({ type: 'success', text: `Invitation envoyée à ${inviteForm.email} !` });
       setInviteForm({ full_name: '', email: '', role: 'nurse', phone: '' });
       setInviteOpen(false);
       fetchStaff();
+      setTimeout(() => setMessage(null), 4000);
+      return;
     }
-    setTimeout(() => setMessage(null), 4000);
+
+    // Fallback: create auth user via a separate client (doesn't affect current session)
+    // then insert staff record directly.
+    console.warn('[handleInvite] Edge Function unavailable, using signUp fallback:', fnError.message);
+    try {
+      const tmpClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+
+      // Generate a secure temporary password (user will reset it)
+      const arr = new Uint8Array(18);
+      crypto.getRandomValues(arr);
+      const tempPassword = btoa(String.fromCharCode(...arr)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) + 'A1!';
+
+      const { data: signUpData, error: signUpError } = await tmpClient.auth.signUp({
+        email: inviteForm.email.trim(),
+        password: tempPassword,
+        options: { emailRedirectTo: window.location.origin },
+      });
+
+      if (signUpError) throw signUpError;
+      const newAuthUserId = signUpData?.user?.id;
+      if (!newAuthUserId) throw new Error('Aucun ID utilisateur retourné.');
+
+      // Insert into users table (allowed by v17_users_admin_insert RLS policy)
+      const { error: insertError } = await supabase.from('users').insert({
+        auth_user_id: newAuthUserId,
+        clinic_id: user.clinicId,
+        full_name: inviteForm.full_name.trim(),
+        email: inviteForm.email.trim(),
+        role: inviteForm.role,
+        phone: inviteForm.phone.trim() || null,
+        is_active: true,
+      });
+
+      if (insertError) throw insertError;
+
+      setMessage({
+        type: 'success',
+        text: `Compte créé pour ${inviteForm.email}. Un email de confirmation a été envoyé. Le membre devra définir son mot de passe via "Mot de passe oublié".`,
+      });
+      setInviteForm({ full_name: '', email: '', role: 'nurse', phone: '' });
+      setInviteOpen(false);
+      fetchStaff();
+    } catch (fallbackErr) {
+      console.error('[handleInvite] Fallback error:', fallbackErr);
+      setMessage({ type: 'error', text: fallbackErr.message || "Erreur lors de la création du compte." });
+    }
+
+    setInviting(false);
+    setTimeout(() => setMessage(null), 6000);
   };
 
   return (

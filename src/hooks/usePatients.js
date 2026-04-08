@@ -445,15 +445,38 @@ export default function usePatients() {
   }, [fetchPatients]);
 
   const invitePatient = useCallback(async (patientId) => {
+    // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('invite-patient', {
       body: { patient_id: patientId },
     });
-    if (error) return { error };
+    if (!error) {
+      setPatients(prev => prev.map(p =>
+        p.id === patientId ? { ...p, invited_at: new Date().toISOString() } : p
+      ));
+      return { data };
+    }
+
+    // Fallback: send OTP magic link directly (no Edge Function needed)
+    console.warn('[invitePatient] Edge Function unavailable, using OTP fallback:', error.message);
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient?.email) return { error: new Error('Email patient manquant dans le dossier.') };
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: patient.email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/#patient`,
+        shouldCreateUser: true,
+      },
+    });
+    if (otpError) return { error: otpError };
+
+    // Mark as invited in DB
+    await supabase.from('patients').update({ invited_at: new Date().toISOString() }).eq('id', patientId);
     setPatients(prev => prev.map(p =>
       p.id === patientId ? { ...p, invited_at: new Date().toISOString() } : p
     ));
-    return { data };
-  }, []);
+    return { data: { fallback: true } };
+  }, [patients]);
 
   const submitPainScore = useCallback(async (patientId, score, jour_post_op, notes = null) => {
     if (!profile) return;

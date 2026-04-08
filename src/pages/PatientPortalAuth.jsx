@@ -43,7 +43,8 @@ export default function PatientPortalAuth() {
   const webcamRef = useRef(null);
   const webcamStreamRef = useRef(null);
   const captureCanvasRef = useRef(null);
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+  // Détection mobile stricte — userAgent uniquement, évite les faux positifs sur Mac/trackpad
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   // Check-in quotidien étendu
   const [checkinStep, setCheckinStep] = useState(1); // 1=douleur, 2=symptômes
   const [selectedScore, setSelectedScore] = useState(null);
