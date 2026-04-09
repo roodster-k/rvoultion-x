@@ -16,6 +16,13 @@ const customStorage = {
   removeItem: (key) => typeof window !== 'undefined' ? window.localStorage.removeItem(key) : null,
 };
 
+// Bypass navigator.locks deadlock bug (supabase-js issues #1594, #2013).
+// The Web Locks API used by GoTrueClient for cross-tab session serialization
+// has a known re-entrant deadlock: _saveSession() acquires the lock, then
+// tries to re-acquire it during the storage write, hanging indefinitely.
+// Safe for single-tab SPAs — loses cross-tab sync, which is acceptable here.
+const noOpLock = async (_name, _acquireTimeout, fn) => fn();
+
 export { supabaseUrl, supabaseAnonKey };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -25,8 +32,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true,
     storageKey: 'postop-auth-token',
-    // Note: lockAcquisitionTimeout removed — value of 0 caused token refresh
-    // to fail immediately under any lock contention, producing 3-5min disconnects.
-    // flowType defaults to 'pkce'; keeping default avoids implicit flow issues.
+    lock: noOpLock,
   }
 });
