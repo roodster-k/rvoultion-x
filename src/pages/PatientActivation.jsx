@@ -72,19 +72,7 @@ export default function PatientActivation() {
       if (!mounted) return;
       setStatus('activating');
 
-      // 2. Find the patient record by email
-      const { data: patient, error: patientError } = await supabase
-        .from('patients')
-        .select('id, auth_user_id, full_name, activated_at')
-        .eq('email', authUser.email)
-        .is('auth_user_id', null)  // Only unlinked patients
-        .maybeSingle();
-
-      if (patientError) {
-        throw new Error(`Erreur de recherche du dossier : ${patientError.message}`);
-      }
-
-      // Check if already activated
+      // 1. Check if already activated (AuthContext may have linked it already via email fallback)
       const { data: existingPatient } = await supabase
         .from('patients')
         .select('id, full_name')
@@ -92,7 +80,6 @@ export default function PatientActivation() {
         .maybeSingle();
 
       if (existingPatient) {
-        // Already linked — just redirect
         if (mounted) {
           setStatus('success');
           setTimeout(() => navigate('/patient/portal', { replace: true }), 1500);
@@ -100,24 +87,33 @@ export default function PatientActivation() {
         return;
       }
 
+      // 2. Find patient by email (case-insensitive) where not yet linked.
+      //    Requires v19_patients_select_by_email_activation policy.
+      const { data: patient, error: patientError } = await supabase
+        .from('patients')
+        .select('id, full_name')
+        .ilike('email', authUser.email)   // case-insensitive email match
+        .is('auth_user_id', null)
+        .maybeSingle();
+
+      if (patientError) {
+        throw new Error(`Erreur de recherche du dossier : ${patientError.message}`);
+      }
+
       if (!patient) {
         throw new Error('Aucun dossier patient trouvé pour cette adresse email. Veuillez contacter la clinique.');
       }
 
-      // 3. Link the auth account to the patient record
+      // 3. Link
       const { error: updateError } = await supabase
         .from('patients')
-        .update({
-          auth_user_id: authUser.id,
-          activated_at: new Date().toISOString(),
-        })
+        .update({ auth_user_id: authUser.id, activated_at: new Date().toISOString() })
         .eq('id', patient.id);
 
       if (updateError) {
         throw new Error(`Erreur d'activation : ${updateError.message}`);
       }
 
-      // 4. Success — redirect to portal
       if (mounted) {
         setStatus('success');
         setTimeout(() => navigate('/patient/portal', { replace: true }), 2000);

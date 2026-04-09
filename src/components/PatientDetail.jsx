@@ -194,8 +194,10 @@ export default function PatientDetail({ currentPatient, onBack }) {
         </div>
       </div>
 
-      {/* Print-only report (hidden in UI, used for PDF export) */}
-      <PrintReport patient={currentPatient} ref={printReportRef} />
+      {/* Print-only report (off-screen, used for PDF export via html2pdf) */}
+      <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '794px', pointerEvents: 'none', zIndex: -1 }}>
+        <PrintReport patient={currentPatient} ref={printReportRef} />
+      </div>
 
       {/* Patient Info Card */}
       <div className="card p-7 mb-5 shadow-sm">

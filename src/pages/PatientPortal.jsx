@@ -3,23 +3,53 @@ import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, Camera, Info, ShieldCheck, AlertCircle, Loader2, MessageCircle, Send } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
-import { usePatientContext } from '../context/PatientContext';
+import { supabase } from '../lib/supabase';
 
+// PatientPortal — simulation/preview page, works without staff auth session.
+// Queries Supabase directly by token (anon policy allows it).
 export default function PatientPortal() {
   const { token } = useParams();
-  const { 
-    patients, loading, fetchSinglePatientByToken, 
-    toggleTask, addPhoto, sendMessage 
-  } = usePatientContext();
+  const [patient, setPatient] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const patient = patients.find(p => p.token === token);
-
-  // FIX: useEffect was used but never imported — this caused a crash
   useEffect(() => {
-    if (!patient && token && !loading) {
-      fetchSinglePatientByToken(token);
-    }
-  }, [token, patient, loading, fetchSinglePatientByToken]);
+    if (!token) { setLoading(false); return; }
+    (async () => {
+      try {
+        const { data: p } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('token', token)
+          .maybeSingle();
+        if (!p) { setLoading(false); return; }
+
+        const [tasksRes, messagesRes, photosRes] = await Promise.all([
+          supabase.from('tasks').select('*').eq('patient_id', p.id).order('sort_order'),
+          supabase.from('messages').select('*').eq('patient_id', p.id).order('created_at'),
+          supabase.from('photos').select('*').eq('patient_id', p.id).order('created_at', { ascending: false }),
+        ]);
+
+        const today = new Date();
+        const dateOp = new Date(p.surgery_date);
+        const jourPostOp = Math.max(0, Math.floor((today - dateOp) / 86400000));
+
+        setPatient({
+          id: p.id, token: p.token,
+          name: p.full_name, intervention: p.intervention,
+          date: p.surgery_date, chirurgien: p.chirurgien,
+          status: p.status || 'normal', jourPostOp,
+          checklist: (tasksRes.data || []).map(t => ({ id: t.id, text: t.title, done: t.done, jour: t.day_post_op, who: t.assigned_to })),
+          messages: (messagesRes.data || []).map(m => ({ id: m.id, from: m.sender_type, text: m.content, timestamp: m.created_at })),
+          photos: (photosRes.data || []).map(ph => ({ id: ph.id, url: ph.url, caption: ph.caption })),
+          painScores: [],
+        });
+      } catch (err) {
+        console.error('[PatientPortal] fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [token]);
 
   const [activeTab, setActiveTab] = useState('tasks');
   const [isUploading, setIsUploading] = useState(false);
@@ -52,11 +82,27 @@ export default function PatientPortal() {
     );
   }
 
+  const handleToggleTask = async (taskId) => {
+    const task = patient.checklist.find(c => c.id === taskId);
+    if (!task) return;
+    const newDone = !task.done;
+    setPatient(prev => ({ ...prev, checklist: prev.checklist.map(c => c.id === taskId ? { ...c, done: newDone } : c) }));
+    await supabase.from('tasks').update({ done: newDone, done_at: newDone ? new Date().toISOString() : null }).eq('id', taskId);
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageInput.trim()) return;
+    const text = messageInput.trim();
+    setMessageInput('');
+    const tempMsg = { id: `temp_${Date.now()}`, from: 'patient', text, timestamp: new Date().toISOString() };
+    setPatient(prev => ({ ...prev, messages: [...prev.messages, tempMsg] }));
+    await supabase.from('messages').insert({ patient_id: patient.id, content: text, sender_type: 'patient', is_read: false });
+  };
+
   const handleSimulateUpload = () => {
     setIsUploading(true);
     setUploadSuccess(false);
     setTimeout(() => {
-      addPhoto(patient.id, `Photo J+${patient.jourPostOp} (${new Date().toLocaleDateString('fr-BE', { timeZone: 'Europe/Brussels' })})`);
       setIsUploading(false);
       setUploadSuccess(true);
       setTimeout(() => setUploadSuccess(false), 3000);
@@ -139,7 +185,7 @@ export default function PatientPortal() {
                   <motion.div key={c.id} initial={{ x: -10, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: i * 0.1 }}>
                     <label className={`flex items-center gap-3.5 py-4 px-5 rounded-2xl cursor-pointer transition-all border
                       ${c.done ? 'bg-status-normal-bg border-emerald-200 hover:bg-emerald-100' : 'bg-white border-border shadow-sm hover:border-primary/30'}`}>
-                      <input type="checkbox" checked={c.done} onChange={() => toggleTask(patient.id, c.id)} className="w-[24px] h-[24px] accent-primary cursor-pointer shrink-0 rounded" />
+                      <input type="checkbox" checked={c.done} onChange={() => handleToggleTask(c.id)} className="w-[24px] h-[24px] accent-primary cursor-pointer shrink-0 rounded" />
                       <div className="flex-1 min-w-0">
                         <div className={`font-bold text-[15px] transition-all
                           ${c.done ? 'text-primary line-through opacity-70' : 'text-text-dark'}`}>
@@ -232,8 +278,8 @@ export default function PatientPortal() {
                 ))}
               </div>
               <div className="flex gap-2.5 bg-white p-2.5 rounded-[20px] border border-border shadow-[0_4px_15px_rgba(0,0,0,0.05)]">
-                <input type="text" value={messageInput} onChange={e=>setMessageInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter' && messageInput.trim()){sendMessage(patient.id, messageInput, 'patient'); setMessageInput('');}}} placeholder="Votre message..." className="flex-1 py-2.5 px-3.5 rounded-xl border-none text-[15px] bg-transparent outline-none font-medium" />
-                <button onClick={()=>{if(messageInput.trim()){sendMessage(patient.id, messageInput, 'patient'); setMessageInput('');}}} className="bg-primary hover:bg-primary-dark text-white border-none w-11 h-11 rounded-xl cursor-pointer flex items-center justify-center transition-colors shadow-sm shrink-0">
+                <input type="text" value={messageInput} onChange={e=>setMessageInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') handleSendMessage();}} placeholder="Votre message..." className="flex-1 py-2.5 px-3.5 rounded-xl border-none text-[15px] bg-transparent outline-none font-medium" />
+                <button onClick={handleSendMessage} className="bg-primary hover:bg-primary-dark text-white border-none w-11 h-11 rounded-xl cursor-pointer flex items-center justify-center transition-colors shadow-sm shrink-0">
                   <Send size={18} />
                 </button>
               </div>
