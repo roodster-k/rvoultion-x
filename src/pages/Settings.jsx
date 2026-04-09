@@ -503,57 +503,44 @@ function TeamTab({ profile, readOnly = false }) {
     setInviting(true);
     setMessage(null);
 
-    // Try Edge Function first
-    const { data: fnData, error: fnError } = await supabase.functions.invoke('create-staff', {
-      body: {
-        full_name: inviteForm.full_name.trim(),
+    try {
+      // signInWithOtp sends a magic link to the staff member's email.
+      // The metadata (is_pending_staff, clinic_id, etc.) is stored in user_metadata
+      // and read by StaffActivation.jsx when they click the link.
+      // This has zero impact on the current admin session (no auth state change).
+      const { error: otpError } = await supabase.auth.signInWithOtp({
         email: inviteForm.email.trim(),
-        role: inviteForm.role,
-        phone: inviteForm.phone.trim() || null,
-      },
-    });
-
-    if (!fnError) {
-      setInviting(false);
-      setMessage({ type: 'success', text: `Invitation envoyée à ${inviteForm.email} !` });
-      setInviteForm({ full_name: '', email: '', role: 'nurse', phone: '' });
-      setInviteOpen(false);
-      fetchStaff();
-      setTimeout(() => setMessage(null), 4000);
-      return;
-    }
-
-    // Fallback: signInWithOtp just sends an email — zero impact on the current admin session.
-    // The staff member clicks the link, lands on /staff/activate where they create their account.
-    console.warn('[handleInvite] Edge Function unavailable, using OTP fallback:', fnError.message);
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: inviteForm.email.trim(),
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/staff/activate`,
-        data: {
-          is_pending_staff: true,
-          clinic_id: user.clinicId,
-          full_name: inviteForm.full_name.trim(),
-          role: inviteForm.role,
-          phone: inviteForm.phone.trim() || null,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/staff/activate`,
+          data: {
+            is_pending_staff: true,
+            clinic_id: user.clinicId,
+            full_name: inviteForm.full_name.trim(),
+            role: inviteForm.role,
+            phone: inviteForm.phone.trim() || null,
+          },
         },
-      },
-    });
-
-    setInviting(false);
-    if (otpError) {
-      setMessage({ type: 'error', text: otpError.message || "Erreur lors de l'envoi de l'invitation." });
-    } else {
-      setMessage({
-        type: 'success',
-        text: `Invitation envoyée à ${inviteForm.email}. Le membre recevra un lien de connexion par email pour créer son compte.`,
       });
-      setInviteForm({ full_name: '', email: '', role: 'nurse', phone: '' });
-      setInviteOpen(false);
-      fetchStaff();
+
+      if (otpError) {
+        setMessage({ type: 'error', text: otpError.message || "Erreur lors de l'envoi de l'invitation." });
+      } else {
+        setMessage({
+          type: 'success',
+          text: `Invitation envoyée à ${inviteForm.email}. Le membre recevra un lien par email pour créer son compte.`,
+        });
+        setInviteForm({ full_name: '', email: '', role: 'nurse', phone: '' });
+        setInviteOpen(false);
+        fetchStaff();
+        setTimeout(() => setMessage(null), 6000);
+      }
+    } catch (err) {
+      console.error('[handleInvite] Unexpected error:', err);
+      setMessage({ type: 'error', text: "Une erreur inattendue est survenue. Réessayez." });
+    } finally {
+      setInviting(false);
     }
-    setTimeout(() => setMessage(null), 6000);
   };
 
   return (
