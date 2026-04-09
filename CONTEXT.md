@@ -135,10 +135,30 @@ All migrations must be applied in Supabase SQL Editor in order.
 
 ---
 
-## Known Limitations / Next Steps
-- **Migrations 019, 020, 021 must be applied manually** in Supabase dashboard SQL Editor — **021 is critical** for fixing "permission denied for table users"
-- **Edge Functions** (`create-staff`, `invite-patient`) are not deployed — all flows use `signInWithOtp` fallback
-- **Logo upload** uses Supabase Storage — ensure bucket `clinic-logos` exists (created by migration 018)
-- **Realtime** (messages, alerts) enabled via migration 017; ensure Realtime is ON for `messages` and `alerts` tables in Supabase dashboard
-- **Cross-tab session sync** disabled (`noOpLock`) — acceptable for SPA; re-enable by removing `lock: noOpLock` if multi-tab support needed
+### RÉSUMÉ DES TRAVAUX RÉCENTS
+
+*   **Correction Bug Paramètres (Settings.jsx) :** Résolution d'un `ReferenceError: user is not defined` dans la fonction `handleInvite`. Utilisation désormais de `profile.clinic_id`.
+*   **Audit RLS (Migration 021) :** Identification des verrous restants sur la table `users`. Migration 021 nécessaire pour accorder les `GRANT SELECT` indispensables à la création de patients.
+*   **Verification Portail Patient :** L'accès anonyme par token est fonctionnel.
+*   **Fix Export PDF :** Méthode de rendu hors-écran validée.
+
+### ACTIONS À RÉALISER (PROCHAIN AGENT)
+
+#### 1. Portail & Authentification Patient
+*   **Problème :** Le lien magique Supabase redirige vers la Landing Page (`/`) au lieu de la page d'activation.
+*   **Cause probable :** L'URL de redirection n'est pas configurée dans la "Redirect Allowlist" du dashboard Supabase.
+*   **Tâche :** 
+    *   Ajouter `http://localhost:5173/patient/activate` et `http://localhost:5173/staff/activate` dans Supabase Auth > Redirect URLs.
+    *   Créer une interface de connexion distincte (ou un sélecteur) sur `/login` pour différencier l'accès "Équipe Médicale" et "Espace Patient".
+    *   Finaliser la page `PatientPortalAuth.jsx` pour que les patients puissent lier leur compte via leur email.
+
+#### 2. Personnalisation des Emails (Supabase Dashboard)
+*   **Tâche :** Personnaliser les templates "Magic Link" et "Invite" dans Supabase pour inclure : 
+    *   Le nom de la clinique (via les métadonnées ou variables).
+    *   Des instructions claires pour le patient.
+    *   Un design aux couleurs de PostOp.
+
+#### 3. Finalisation Migration 021
+*   **Tâche :** Appliquer `supabase/migrations/021_grants_and_security_definer_fix.sql` pour débloquer la création de patients par le staff.
+for SPA; re-enable by removing `lock: noOpLock` if multi-tab support needed
 - **PDF export** captures off-screen PrintReport — images from private storage URLs may not render (CORS)

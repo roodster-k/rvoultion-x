@@ -41,30 +41,31 @@ BEGIN
         WHERE id = v_patient_id;
     END IF;
 
-    -- 2. Création de tâches pour ce patient
-    -- On simule des tâches déjà faites et à faire
-    INSERT INTO tasks (patient_id, clinic_id, label, jour_post_op_ref, patient_can_check, done, done_at)
-    VALUES 
-    (v_patient_id, v_clinic_id, 'Premier lever et marche', 1, false, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
-    (v_patient_id, v_clinic_id, 'Prise des antalgiques J+1', 1, true, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
-    (v_patient_id, v_clinic_id, 'Vérification du pansement', 2, false, true, CURRENT_TIMESTAMP - INTERVAL '1 day'),
-    (v_patient_id, v_clinic_id, 'Douche autorisée (sans mouiller le pansement)', 3, true, false, NULL),
-    (v_patient_id, v_clinic_id, 'Photo de contrôle cicatrice', 3, true, false, NULL),
-    (v_patient_id, v_clinic_id, 'Rendez-vous retrait fils', 7, false, false, NULL)
-    ON CONFLICT DO NOTHING;
+    -- 2. Création de tâches pour ce patient (Idempotent)
+    IF NOT EXISTS (SELECT 1 FROM tasks WHERE patient_id = v_patient_id AND label = 'Premier lever et marche') THEN
+        INSERT INTO tasks (patient_id, clinic_id, label, jour_post_op_ref, patient_can_check, done, done_at)
+        VALUES 
+        (v_patient_id, v_clinic_id, 'Premier lever et marche', 1, false, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+        (v_patient_id, v_clinic_id, 'Prise des antalgiques J+1', 1, true, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+        (v_patient_id, v_clinic_id, 'Vérification du pansement', 2, false, true, CURRENT_TIMESTAMP - INTERVAL '1 day'),
+        (v_patient_id, v_clinic_id, 'Douche autorisée (sans mouiller le pansement)', 3, true, false, NULL),
+        (v_patient_id, v_clinic_id, 'Photo de contrôle cicatrice', 3, true, false, NULL),
+        (v_patient_id, v_clinic_id, 'Rendez-vous retrait fils', 7, false, false, NULL);
+    END IF;
 
-    -- 3. Ajout d'une douleur historique
+    -- 3. Ajout d'une douleur historique (Table avec contrainte UNIQUE existante)
     INSERT INTO pain_scores (patient_id, clinic_id, score, jour_post_op)
     VALUES 
     (v_patient_id, v_clinic_id, 6, 1),
     (v_patient_id, v_clinic_id, 4, 2),
     (v_patient_id, v_clinic_id, 3, 3)
-    ON CONFLICT DO NOTHING;
+    ON CONFLICT (patient_id, jour_post_op) DO NOTHING;
 
-    -- 4. Un message de bienvenue
-    INSERT INTO messages (patient_id, clinic_id, sender_type, sender_id, content)
-    VALUES (v_patient_id, v_clinic_id, 'nurse', v_surgeon_id, 'Bonjour Sarah, comment vous sentez-vous aujourd''hui ? N''oubliez pas de nous envoyer la photo de contrôle.')
-    ON CONFLICT DO NOTHING;
+    -- 4. Un message de bienvenue (Idempotent)
+    IF NOT EXISTS (SELECT 1 FROM messages WHERE patient_id = v_patient_id AND content LIKE 'Bonjour Sarah%') THEN
+        INSERT INTO messages (patient_id, clinic_id, sender_type, sender_id, content)
+        VALUES (v_patient_id, v_clinic_id, 'nurse', v_surgeon_id, 'Bonjour Sarah, comment vous sentez-vous aujourd''hui ? N''oubliez pas de nous envoyer la photo de contrôle.');
+    END IF;
 
     RAISE NOTICE 'Données de test générées pour le patient Sarah Bernard (ID: %)', v_patient_id;
 END $$;

@@ -508,7 +508,7 @@ function TeamTab({ profile, readOnly = false }) {
       // signInWithOtp with options.data can throw in some Supabase project configs.
       // URL params are safer: they survive the OTP redirect intact.
       const params = new URLSearchParams({
-        clinic_id: user.clinicId,
+        clinic_id: profile.clinic_id,
         full_name: inviteForm.full_name.trim(),
         role: inviteForm.role,
         ...(inviteForm.phone.trim() ? { phone: inviteForm.phone.trim() } : {}),
