@@ -142,3 +142,32 @@ All migrations must be applied in Supabase SQL Editor in order.
 - **Realtime** (messages, alerts) enabled via migration 017; ensure Realtime is ON for `messages` and `alerts` tables in Supabase dashboard
 - **Cross-tab session sync** disabled (`noOpLock`) — acceptable for SPA; re-enable by removing `lock: noOpLock` if multi-tab support needed
 - **PDF export** captures off-screen PrintReport — images from private storage URLs may not render (CORS)
+
+---
+
+## PATCH_NOTES.md Audit (docs/PATCH_NOTES.md)
+
+Report reviewed on 2026-04-09. All 10 fixes verified as already applied:
+
+| Fix | File | Status |
+|-----|------|--------|
+| 1. "Connexion" link → `/login` | `LandingPage.jsx:51` | ✅ Applied |
+| 2. Signup "Se connecter" loop fix + mobile link | `SignupClinic.jsx` | ✅ Applied |
+| 3. Auth loading reliability (getSession + hasInitialized) | `AuthContext.jsx` | ✅ Applied |
+| 4. Sidebar `sidebarOpen` prop + `sidebar-open` class | `Sidebar.jsx:16` | ✅ Applied |
+| 5. NurseDashboard passes `sidebarOpen` to Sidebar | `NurseDashboard.jsx:90-96` | ✅ Applied |
+| 6. CSS `.sidebar.sidebar-open` mobile slide-in rule | `global.css:151-154` | ✅ Applied |
+| 7. PatientPortal `useEffect` import | `PatientPortal.jsx:1` | ✅ Applied |
+| 8. Migration 007 — RLS consolidation (drops conflicts, v7_ prefix) | `migrations/007_*.sql` | ✅ File exists |
+| 9. Migration 009 — Supreme RLS + SECURITY DEFINER | `migrations/009_*.sql` | ✅ File exists |
+| 10. Migration 010 — Daily reminders pg_cron | `migrations/010_*.sql` | ✅ File exists |
+
+### SQL Migrations to Apply in Supabase (in order)
+Only run migrations that haven't been executed yet. To verify:
+```sql
+-- Check v20_ policies exist (migration 020 applied)
+SELECT policyname FROM pg_policies WHERE policyname LIKE 'v20%';
+-- Check GRANTs (migration 021 applied)
+SELECT has_table_privilege('authenticated', 'users', 'INSERT');
+```
+Run missing migrations: 009 → 016 → 017 → 018 → 019 → 020 → **021** (critical)
