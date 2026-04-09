@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { countryCodes, interventionLabels, chirurgienLabels } from '../data/constants';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -8,29 +8,43 @@ import { useData } from '../context/DataContext';
 export default function AddPatientModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const { addPatient } = useData();
-  
+
   // Set default date to today for convenience
   const todayStr = new Date().toISOString().split('T')[0];
-  
+
   const [newPatientForm, setNewPatientForm] = useState({
     name: '', intervention: '', chirurgien: '', surgeryDate: todayStr, email: '',
     phoneCode: '+32', phoneNumber: '', whatsapp: ''
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (newPatientForm.name && newPatientForm.intervention && newPatientForm.surgeryDate) {
-      const phone = `${newPatientForm.phoneCode} ${newPatientForm.phoneNumber}`;
-      addPatient({
-        ...newPatientForm,
-        phone,
-        whatsapp: newPatientForm.whatsapp || phone.replace(/\s/g, ''),
-      }, user?.name);
-      setNewPatientForm({ name: '', intervention: '', chirurgien: '', surgeryDate: todayStr, email: '', phoneCode: '+32', phoneNumber: '', whatsapp: '' });
-      onClose();
+    if (!newPatientForm.name || !newPatientForm.intervention || !newPatientForm.surgeryDate) return;
+
+    setSubmitting(true);
+    setSubmitError('');
+
+    const phone = `${newPatientForm.phoneCode} ${newPatientForm.phoneNumber}`;
+    const result = await addPatient({
+      ...newPatientForm,
+      phone,
+      whatsapp: newPatientForm.whatsapp || phone.replace(/\s/g, ''),
+    }, user?.name);
+
+    setSubmitting(false);
+
+    if (result?.error) {
+      setSubmitError(`Erreur lors de la création : ${result.error.message || 'Réessayez.'}`);
+      return;
     }
+
+    setNewPatientForm({ name: '', intervention: '', chirurgien: '', surgeryDate: todayStr, email: '', phoneCode: '+32', phoneNumber: '', whatsapp: '' });
+    setSubmitError('');
+    onClose();
   };
 
   return (
@@ -92,8 +106,13 @@ export default function AddPatientModal({ isOpen, onClose }) {
               </div>
             </div>
             
-            <button type="submit" className="btn-primary mt-2 flex justify-center items-center py-4 text-[15px] shadow-button w-full">
-              Créer le dossier
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl font-medium">
+                {submitError}
+              </div>
+            )}
+            <button type="submit" disabled={submitting} className="btn-primary mt-2 flex justify-center items-center py-4 text-[15px] shadow-button w-full disabled:opacity-60">
+              {submitting ? <><Loader2 size={16} className="animate-spin mr-2" /> Création…</> : 'Créer le dossier'}
             </button>
           </form>
         </motion.div>
