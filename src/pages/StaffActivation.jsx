@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase';
  */
 export default function StaffActivation() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [password, setPassword] = useState('');
@@ -82,18 +83,29 @@ export default function StaffActivation() {
         return;
       }
 
-      // Read pending staff data from user metadata (set by admin during invite)
-      const meta = authUser.user_metadata || {};
-      if (meta.is_pending_staff && meta.clinic_id) {
-        // Insert the staff record using the new user's own session
-        // (allowed by v9_users_insert_onboarding: auth_user_id = auth.uid())
+      // Read pending staff data from URL params (set by admin via emailRedirectTo).
+      // Fallback to user_metadata for backwards compatibility.
+      const urlClinicId = searchParams.get('clinic_id');
+      const urlFullName = searchParams.get('full_name');
+      const urlRole     = searchParams.get('role');
+      const urlPhone    = searchParams.get('phone');
+      const meta        = authUser.user_metadata || {};
+
+      const clinicId = urlClinicId || meta.clinic_id;
+      const fullName = urlFullName || meta.full_name || authUser.email;
+      const role     = urlRole     || meta.role     || 'nurse';
+      const phone    = urlPhone    || meta.phone    || null;
+
+      if (clinicId) {
+        // Insert the staff record using the new user's own session.
+        // Allowed by v20_users_insert_self: WITH CHECK (auth_user_id = auth.uid())
         const { error: insertError } = await supabase.from('users').insert({
           auth_user_id: authUser.id,
-          clinic_id: meta.clinic_id,
-          full_name: meta.full_name || authUser.email,
+          clinic_id: clinicId,
+          full_name: fullName,
           email: authUser.email,
-          role: meta.role || 'nurse',
-          phone: meta.phone || null,
+          role,
+          phone,
           is_active: true,
         });
 
@@ -102,7 +114,7 @@ export default function StaffActivation() {
           // Non-fatal — staff can still set password and login, admin can fix later
         }
 
-        setStaffName(meta.full_name || authUser.email);
+        setStaffName(fullName);
       }
 
       if (mounted) setStatus('set_password');
@@ -110,7 +122,7 @@ export default function StaffActivation() {
 
     waitForSession();
     return () => { mounted = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSetPassword = async (e) => {
     e.preventDefault();

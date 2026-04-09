@@ -49,7 +49,8 @@ All migrations must be applied in Supabase SQL Editor in order.
 | 017 | Realtime + admin insert for users |
 | 018 | Storage + appointments/medications for patients |
 | **019** | clinics UPDATE for admins + patients SELECT by email |
-| **020** | **CRITICAL**: Fix signup RLS + patients UPDATE for staff |
+| **020** | Fix signup RLS + patients UPDATE for staff |
+| **021** | **CRITICAL**: GRANT ALL on all tables + recreate SECURITY DEFINER functions |
 
 ---
 
@@ -135,7 +136,7 @@ All migrations must be applied in Supabase SQL Editor in order.
 ---
 
 ## Known Limitations / Next Steps
-- **Migrations 019 and 020 must be applied manually** in Supabase dashboard SQL Editor
+- **Migrations 019, 020, 021 must be applied manually** in Supabase dashboard SQL Editor — **021 is critical** for fixing "permission denied for table users"
 - **Edge Functions** (`create-staff`, `invite-patient`) are not deployed — all flows use `signInWithOtp` fallback
 - **Logo upload** uses Supabase Storage — ensure bucket `clinic-logos` exists (created by migration 018)
 - **Realtime** (messages, alerts) enabled via migration 017; ensure Realtime is ON for `messages` and `alerts` tables in Supabase dashboard
