@@ -504,22 +504,22 @@ function TeamTab({ profile, readOnly = false }) {
     setMessage(null);
 
     try {
-      // signInWithOtp sends a magic link to the staff member's email.
-      // The metadata (is_pending_staff, clinic_id, etc.) is stored in user_metadata
-      // and read by StaffActivation.jsx when they click the link.
-      // This has zero impact on the current admin session (no auth state change).
+      // Encode staff metadata into the redirect URL rather than options.data.
+      // signInWithOtp with options.data can throw in some Supabase project configs.
+      // URL params are safer: they survive the OTP redirect intact.
+      const params = new URLSearchParams({
+        clinic_id: user.clinicId,
+        full_name: inviteForm.full_name.trim(),
+        role: inviteForm.role,
+        ...(inviteForm.phone.trim() ? { phone: inviteForm.phone.trim() } : {}),
+      });
+      const redirectTo = `${window.location.origin}/staff/activate?${params.toString()}`;
+
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email: inviteForm.email.trim(),
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/staff/activate`,
-          data: {
-            is_pending_staff: true,
-            clinic_id: user.clinicId,
-            full_name: inviteForm.full_name.trim(),
-            role: inviteForm.role,
-            phone: inviteForm.phone.trim() || null,
-          },
+          emailRedirectTo: redirectTo,
         },
       });
 
@@ -537,7 +537,7 @@ function TeamTab({ profile, readOnly = false }) {
       }
     } catch (err) {
       console.error('[handleInvite] Unexpected error:', err);
-      setMessage({ type: 'error', text: "Une erreur inattendue est survenue. Réessayez." });
+      setMessage({ type: 'error', text: err?.message || "Une erreur inattendue est survenue. Réessayez." });
     } finally {
       setInviting(false);
     }
