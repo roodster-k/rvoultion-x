@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Upload, Plus, Trash2, Edit2, X, Check, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Save, Upload, Plus, Trash2, Edit2, X, Check, Users, ChevronDown, ChevronUp, FileText, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { interventionLabels } from '../data/constants';
@@ -211,247 +212,27 @@ function ClinicTab({ profile, clinicSettings, refreshProfile }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ONGLET PROTOCOLES
 // ─────────────────────────────────────────────────────────────────────────────
-function ProtocolsTab({ profile }) {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null); // null = list, object = form
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
-
-  const fetchTemplates = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('protocol_templates')
-      .select('*')
-      .or(`clinic_id.eq.${profile.clinic_id},is_global.eq.true`)
-      .order('created_at', { ascending: false });
-    if (!error) setTemplates(data || []);
-    setLoading(false);
-  }, [profile.clinic_id]);
-
-  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
-
-  const handleNew = () => {
-    setEditing({
-      id: null,
-      intervention_type: '',
-      name: '',
-      description: '',
-      is_global: false,
-      tasks: [],
-      clinic_id: profile.clinic_id,
-    });
-  };
-
-  const handleEdit = (tpl) => {
-    if (tpl.is_global && profile.role !== 'super_admin') {
-      setMessage({ type: 'info', text: 'Les protocoles globaux ne peuvent pas être modifiés. Vous pouvez en créer un personnalisé.' });
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-    setEditing({ ...tpl, tasks: tpl.tasks ? [...tpl.tasks] : [] });
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer ce protocole ?')) return;
-    await supabase.from('protocol_templates').delete().eq('id', id);
-    fetchTemplates();
-  };
-
-  const handleSave = async () => {
-    if (!editing.intervention_type.trim() || !editing.name.trim()) {
-      setMessage({ type: 'error', text: "Le type d'intervention et le nom sont obligatoires." });
-      return;
-    }
-    setSaving(true);
-    const payload = {
-      intervention_type: editing.intervention_type.trim(),
-      name: editing.name.trim(),
-      description: editing.description || null,
-      is_global: editing.is_global && profile.role === 'super_admin',
-      tasks: editing.tasks,
-      clinic_id: profile.clinic_id,
-    };
-    let error;
-    if (editing.id) {
-      ({ error } = await supabase.from('protocol_templates').update(payload).eq('id', editing.id));
-    } else {
-      ({ error } = await supabase.from('protocol_templates').insert(payload));
-    }
-    setSaving(false);
-    if (error) {
-      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde : ' + error.message });
-    } else {
-      setEditing(null);
-      fetchTemplates();
-    }
-  };
-
-  const addTask = () => {
-    setEditing(prev => ({
-      ...prev,
-      tasks: [...prev.tasks, { label: '', description: '', jour_post_op_ref: null, patient_can_check: false, sort_order: prev.tasks.length + 1 }],
-    }));
-  };
-
-  const updateTask = (idx, field, value) => {
-    setEditing(prev => ({
-      ...prev,
-      tasks: prev.tasks.map((t, i) => i === idx ? { ...t, [field]: value } : t),
-    }));
-  };
-
-  const removeTask = (idx) => {
-    setEditing(prev => ({ ...prev, tasks: prev.tasks.filter((_, i) => i !== idx) }));
-  };
-
-  if (editing !== null) {
-    return (
-      <div className="bg-white rounded-[20px] p-6 shadow-card border border-border max-w-3xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="font-bold text-xl text-text-dark">{editing.id ? 'Modifier le protocole' : 'Nouveau protocole'}</h2>
-          <button onClick={() => setEditing(null)} className="text-text-muted hover:text-text-dark p-1 cursor-pointer bg-transparent border-none"><X size={20} /></button>
-        </div>
-
-        {message && (
-          <div className={`p-3 mb-4 rounded-xl text-sm font-bold ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'}`}>
-            {message.text}
-          </div>
-        )}
-
-        <div className="space-y-4 mb-6">
-          <div>
-            <label className="block text-sm font-bold text-text-dark mb-1.5">Type d'intervention *</label>
-            <input list="interventions-list" value={editing.intervention_type}
-              onChange={e => setEditing(prev => ({ ...prev, intervention_type: e.target.value }))}
-              placeholder="Ex : Rhinoplastie"
-              className="w-full border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
-            <datalist id="interventions-list">
-              {interventionLabels.map(l => <option key={l} value={l} />)}
-            </datalist>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-text-dark mb-1.5">Nom du protocole *</label>
-            <input value={editing.name} onChange={e => setEditing(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Ex : Protocole post-op standard"
-              className="w-full border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-text-dark mb-1.5">Description (optionnelle)</label>
-            <textarea value={editing.description || ''} onChange={e => setEditing(prev => ({ ...prev, description: e.target.value }))}
-              rows={2} placeholder="Notes internes sur ce protocole..."
-              className="w-full border border-border rounded-xl px-4 py-3 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 resize-none" />
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-[15px] text-text-dark">Tâches du protocole ({editing.tasks.length})</h3>
-            <button onClick={addTask}
-              className="flex items-center gap-1.5 bg-primary text-white border-none px-3 py-1.5 rounded-lg text-sm font-bold cursor-pointer hover:bg-primary-dark transition-colors">
-              <Plus size={14} /> Ajouter
-            </button>
-          </div>
-          {editing.tasks.length === 0 ? (
-            <div className="text-center py-6 text-text-muted text-sm border-2 border-dashed border-border rounded-xl">
-              Aucune tâche. Cliquez sur "Ajouter" pour commencer.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5 max-h-[360px] overflow-y-auto pr-1">
-              {editing.tasks.map((task, idx) => (
-                <div key={idx} className="bg-slate-50 rounded-xl p-3.5 border border-border">
-                  <div className="flex gap-2 mb-2">
-                    <input value={task.label} onChange={e => updateTask(idx, 'label', e.target.value)}
-                      placeholder="Libellé de la tâche *"
-                      className="flex-1 border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
-                    <button onClick={() => removeTask(idx)}
-                      className="text-red-400 hover:text-red-600 p-2 cursor-pointer bg-transparent border-none shrink-0">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <div className="flex items-center gap-1.5">
-                      <label className="text-[12px] text-text-muted font-semibold">Jour post-op</label>
-                      <input type="number" min="0" value={task.jour_post_op_ref ?? ''} onChange={e => updateTask(idx, 'jour_post_op_ref', e.target.value === '' ? null : Number(e.target.value))}
-                        placeholder="J+"
-                        className="w-16 border border-border rounded-lg px-2 py-1.5 text-sm outline-none focus:border-primary bg-white text-center" />
-                    </div>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-[12px] text-text-muted font-semibold">
-                      <input type="checkbox" checked={task.patient_can_check}
-                        onChange={e => updateTask(idx, 'patient_can_check', e.target.checked)}
-                        className="accent-primary w-4 h-4" />
-                      Patient peut cocher
-                    </label>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-3 pt-4 border-t border-border">
-          <button onClick={() => setEditing(null)}
-            className="px-5 py-2.5 border border-border rounded-xl font-bold text-sm text-text-muted hover:text-text-dark cursor-pointer bg-white transition-colors">
-            Annuler
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            className="bg-primary hover:bg-primary-dark text-white border-none px-6 py-2.5 rounded-xl font-bold text-sm cursor-pointer disabled:opacity-60 flex items-center gap-2 shadow-sm transition-colors">
-            <Save size={16} /> {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+function ProtocolsTab() {
+  const navigate = useNavigate();
   return (
-    <div className="max-w-3xl">
-      {message && (
-        <div className={`p-3 mb-4 rounded-xl text-sm font-bold ${message.type === 'info' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-red-50 text-red-700'}`}>
-          {message.text}
+    <div className="max-w-2xl">
+      <div className="bg-white rounded-[20px] border border-border p-8 shadow-sm flex flex-col items-center text-center gap-5">
+        <div className="w-16 h-16 bg-primary-light rounded-2xl flex items-center justify-center">
+          <FileText size={28} className="text-primary" />
         </div>
-      )}
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-text-muted text-sm font-medium">{templates.length} protocole(s) disponible(s)</p>
-        <button onClick={handleNew}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white border-none px-4 py-2.5 rounded-xl font-bold text-sm cursor-pointer shadow-sm transition-colors">
-          <Plus size={16} /> Nouveau protocole
+        <div>
+          <h3 className="font-bold text-[17px] text-text-dark mb-1.5">Protocoles post-opératoires</h3>
+          <p className="text-text-muted text-[13px] leading-relaxed max-w-sm">
+            Créez et gérez vos protocoles standards et personnalisés. Assignez-les à vos patients depuis leur dossier.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/protocols')}
+          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-xl font-bold text-sm shadow-button transition-colors border-none cursor-pointer"
+        >
+          <FileText size={16} /> Gérer les protocoles <ChevronRight size={15} />
         </button>
       </div>
-
-      {loading ? (
-        <div className="text-center py-10 text-text-muted">Chargement...</div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {templates.map(tpl => (
-            <div key={tpl.id} className={`bg-white rounded-[16px] p-5 border shadow-sm flex justify-between items-start gap-4
-              ${tpl.is_global ? 'border-primary/30 bg-primary-light/20' : 'border-border'}`}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="font-bold text-[15px] text-text-dark">{tpl.name}</span>
-                  {tpl.is_global && <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full font-bold">GLOBAL</span>}
-                </div>
-                <div className="text-[13px] text-text-muted font-medium">{tpl.intervention_type}</div>
-                <div className="text-[12px] text-text-muted mt-1">{(tpl.tasks || []).length} tâche(s)</div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => handleEdit(tpl)}
-                  className={`p-2 rounded-lg border-none cursor-pointer transition-colors
-                    ${tpl.is_global && profile.role !== 'super_admin'
-                      ? 'text-slate-300 cursor-not-allowed bg-transparent'
-                      : 'text-text-muted hover:text-primary hover:bg-primary-light bg-transparent'}`}>
-                  <Edit2 size={15} />
-                </button>
-                {!tpl.is_global && (
-                  <button onClick={() => handleDelete(tpl.id)}
-                    className="p-2 rounded-lg text-text-muted hover:text-red-600 hover:bg-red-50 bg-transparent border-none cursor-pointer transition-colors">
-                    <Trash2 size={15} />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, MessageCircle, ArrowUpDown, Phone } from 'lucide-react';
+import { Plus, MessageCircle, ArrowUpDown, Phone, CheckSquare } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
 const SORT_OPTIONS = [
@@ -106,6 +106,15 @@ export default function PatientList({ patients, searchTerm, onAddPatient, onSele
                 {(p.phone || p.whatsapp) && (
                   <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
                     <Phone size={10} /> {p.phone || p.whatsapp}
+                  </span>
+                )}
+                {p.checklist?.length > 0 && (
+                  <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md
+                    ${p.checklist.filter(c => c.done).length === p.checklist.length
+                      ? 'text-emerald-700 bg-emerald-50'
+                      : 'text-primary bg-primary-light'}`}>
+                    <CheckSquare size={10} />
+                    {p.checklist.filter(c => c.done).length}/{p.checklist.length}
                   </span>
                 )}
               </div>

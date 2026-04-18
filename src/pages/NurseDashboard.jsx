@@ -10,6 +10,7 @@ import AlertCenter from '../components/AlertCenter';
 import Settings from './Settings';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import AgendaView from '../components/AgendaView';
+import NotificationBell from '../components/NotificationBell';
 import { useAuth } from '../context/AuthContext';
 import { usePatientContext } from '../context/PatientContext';
 import { useAlertContext } from '../context/AlertContext';
@@ -71,8 +72,13 @@ export default function NurseDashboard() {
   return (
     <div className="flex relative min-h-screen bg-surface-main">
       
+      {/* Notification Bell — fixed top-right */}
+      <div className="fixed top-4 right-4 z-[999]">
+        <NotificationBell />
+      </div>
+
       {/* Email Toasts */}
-      <div className="fixed top-5 right-5 z-[1000] flex flex-col gap-2.5">
+      <div className="fixed top-5 right-16 z-[1000] flex flex-col gap-2.5">
         <AnimatePresence>
           {emailToasts.map(toast => (
             <motion.div key={toast.id} initial={{ opacity: 0, x: 80 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 80 }}
@@ -118,8 +124,8 @@ export default function NurseDashboard() {
                   <p className="text-text-muted font-medium text-sm">Recherchez et accédez à tous les dossiers patients de la clinique.</p>
                 </div>
               </div>
-              <div className="flex gap-2.5 items-center">
-                <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 min-w-[280px] shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+              <div className="flex gap-2.5 items-center w-full sm:w-auto">
+                <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 flex-1 min-w-0 shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
                   <Search size={18} className="text-primary" />
                   <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher par nom, intervention..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" autoFocus />
                 </div>
@@ -159,7 +165,7 @@ export default function NurseDashboard() {
                   <button onClick={() => handleSetViewMode('mes_patients')} className={`py-2 px-3.5 rounded-lg border-none font-bold text-[13px] cursor-pointer transition-all ${viewMode === 'mes_patients' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-text-muted hover:text-text-dark'}`}>Mes Patients</button>
                   <button onClick={() => handleSetViewMode('equipe')} className={`py-2 px-3.5 rounded-lg border-none font-bold text-[13px] cursor-pointer transition-all ${viewMode === 'equipe' ? 'bg-white text-primary shadow-sm' : 'bg-transparent text-text-muted hover:text-text-dark'}`}>Vue Équipe</button>
                 </div>
-                <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 min-w-[240px] shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+                <div className="flex items-center bg-white border border-border rounded-xl py-2 px-4 flex-1 min-w-0 shadow-sm focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary transition-all">
                   <Search size={18} className="text-primary" />
                   <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} placeholder="Rechercher patient..." className="border-none bg-transparent outline-none ml-2.5 w-full font-sans text-sm text-text-dark" />
                 </div>

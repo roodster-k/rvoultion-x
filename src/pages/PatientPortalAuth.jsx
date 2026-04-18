@@ -54,7 +54,7 @@ export default function PatientPortalAuth() {
   // ─── Redirect if not authenticated as patient ───
   useEffect(() => {
     if (!authLoading && !authUser) {
-      navigate('/', { replace: true });
+      navigate('/login', { replace: true });
     }
   }, [authLoading, authUser, navigate]);
 
@@ -414,7 +414,7 @@ export default function PatientPortalAuth() {
   // ─── Logout ───
   const handleLogout = async () => {
     await logout();
-    navigate('/', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   // ─── Loading / Error states ───

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2, Pill, X } from 'lucide-react';
+import { Phone, AtSign, CheckSquare, Image as ImageIcon, MessageCircle, Plus, Send, Mail, UserCheck, TrendingUp, Columns, Printer, CalendarDays, Trash2, Pill, X, FileText, Loader2, Camera, Upload } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { useData } from '../context/DataContext';
 import { useAlertContext } from '../context/AlertContext';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { statusConfig } from '../data/constants';
 import PainChart from './PainChart';
 import useAppointments from '../hooks/useAppointments';
@@ -16,6 +17,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const { toggleTask, addNote, addCustomTask, sendMessage, updatePatientStatus, invitePatient } = useData();
   const { toast } = useToast();
   const { clearPatientAlerts } = useAlertContext();
+  const { profile } = useAuth();
 
   const [activeTab, setActiveTab] = useState('checklist');
   const [noteInput, setNoteInput] = useState('');
@@ -27,9 +29,65 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const [inviteMsg, setInviteMsg] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareIds, setCompareIds] = useState([]); // max 2 photo ids
+
+  // ─── Staff photo upload ───
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoNote, setPhotoNote] = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef(null);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const printReportRef = useRef(null);
+
+  // ─── Assign Protocol ───
+  const [showAssignProtocol, setShowAssignProtocol] = useState(false);
+  const [protocolTemplates, setProtocolTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [assigningProtocol, setAssigningProtocol] = useState(false);
+  const [assignError, setAssignError] = useState('');
+
+  useEffect(() => {
+    if (!showAssignProtocol || !profile?.clinic_id) return;
+    supabase
+      .from('protocol_templates')
+      .select('id, name, intervention_type, tasks')
+      .or(`is_global.eq.true,clinic_id.eq.${profile.clinic_id}`)
+      .order('name')
+      .then(({ data }) => {
+        setProtocolTemplates(data || []);
+        // Pre-select first matching template by intervention type
+        const match = (data || []).find(t =>
+          t.intervention_type?.toLowerCase() === currentPatient.intervention?.toLowerCase()
+        );
+        setSelectedTemplateId(match?.id || data?.[0]?.id || '');
+      });
+  }, [showAssignProtocol, profile?.clinic_id, currentPatient.intervention]);
+
+  const handleAssignProtocol = async () => {
+    const tpl = protocolTemplates.find(t => t.id === selectedTemplateId);
+    if (!tpl?.tasks?.length) { setAssignError('Ce protocole ne contient aucune étape.'); return; }
+    setAssigningProtocol(true);
+    setAssignError('');
+    try {
+      const rows = tpl.tasks.map(task => ({
+        patient_id: currentPatient.id,
+        clinic_id: profile.clinic_id,
+        label: task.label,
+        description: task.description || null,
+        jour_post_op_ref: task.jour_post_op_ref ?? null,
+        patient_can_check: task.patient_can_check ?? false,
+        sort_order: task.sort_order ?? 0,
+        done: false,
+      }));
+      const { error } = await supabase.from('tasks').insert(rows);
+      if (error) throw error;
+      window.location.reload();
+    } catch (err) {
+      console.error('[AssignProtocol]', err);
+      setAssignError(err.message || 'Erreur lors de l\'assignation.');
+      setAssigningProtocol(false);
+    }
+  };
 
   const handleExportPDF = async () => {
     const element = printReportRef.current;
@@ -151,6 +209,18 @@ export default function PatientDetail({ currentPatient, onBack }) {
     sendMessage(currentPatient.id, labels[type], 'system');
   };
 
+  const handlePhotoUpload = async () => {
+    if (!photoFile) return;
+    setPhotoUploading(true);
+    const result = await addPhoto(currentPatient.id, { file: photoFile, note: photoNote.trim() || null });
+    setPhotoUploading(false);
+    if (!result?.error) {
+      setPhotoFile(null);
+      setPhotoNote('');
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
   const inviteButtonState = () => {
     if (!currentPatient.email) return null;
     if (currentPatient.auth_user_id) return 'activated';
@@ -200,7 +270,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
       </div>
 
       {/* Patient Info Card */}
-      <div className="card p-7 mb-5 shadow-sm">
+      <div className="card p-4 sm:p-7 mb-5 shadow-sm">
         <div className="flex justify-between items-start mb-5 gap-4 flex-wrap">
           <div>
             <h1 className="font-serif text-[26px] mb-1 font-bold">{currentPatient.name}</h1>
@@ -306,7 +376,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
           })()}
 
           {/* Notes cliniques chronologiques */}
-          <div className="flex-1 min-w-[250px] bg-slate-50 p-4 rounded-xl border border-border">
+          <div className="flex-1 min-w-0 bg-slate-50 p-4 rounded-xl border border-border">
             <div className="flex justify-between items-center mb-2">
               <div className="text-[11px] text-text-muted font-bold uppercase tracking-wide">Notes cliniques</div>
               {notes.length > 3 && (
@@ -376,12 +446,61 @@ export default function PatientDetail({ currentPatient, onBack }) {
       </div>
 
       {/* Tab Content */}
-      <div className="card p-7 shadow-sm">
+      <div className="card p-4 sm:p-7 shadow-sm">
 
         {/* CHECKLIST TAB */}
         {activeTab === 'checklist' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h3 className="text-[17px] mb-4 font-bold text-text-dark">Validation Clinique & Patient</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[17px] font-bold text-text-dark">Validation Clinique & Patient</h3>
+              <button
+                onClick={() => { setShowAssignProtocol(p => !p); setAssignError(''); }}
+                className="flex items-center gap-1.5 text-[12px] font-bold text-primary bg-primary-light px-3 py-1.5 rounded-lg border-none cursor-pointer hover:bg-primary/10 transition-colors"
+              >
+                <FileText size={13} /> Assigner un protocole
+              </button>
+            </div>
+
+            {/* Protocol Assignment Panel */}
+            {showAssignProtocol && (
+              <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-[12px] font-bold text-blue-700 mb-2.5">Choisir un protocole à appliquer :</p>
+                {protocolTemplates.length === 0 ? (
+                  <p className="text-[12px] text-blue-500">Chargement des protocoles…</p>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    <select
+                      value={selectedTemplateId}
+                      onChange={e => setSelectedTemplateId(e.target.value)}
+                      className="w-full border border-blue-200 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-400 bg-white"
+                    >
+                      {protocolTemplates.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} — {t.intervention_type} ({t.tasks?.length ?? 0} étapes)
+                        </option>
+                      ))}
+                    </select>
+                    {assignError && <p className="text-[12px] text-red-600 font-semibold">{assignError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowAssignProtocol(false)}
+                        className="px-4 py-2 rounded-lg text-[12px] font-bold text-text-muted bg-white border border-border cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={handleAssignProtocol}
+                        disabled={assigningProtocol || !selectedTemplateId}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold text-white bg-blue-600 hover:bg-blue-700 border-none cursor-pointer disabled:opacity-60 transition-colors"
+                      >
+                        {assigningProtocol ? <><Loader2 size={13} className="animate-spin" /> Application…</> : 'Appliquer le protocole'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col gap-2.5 mb-7">
               {currentPatient.checklist.map(c => {
                 const late = !c.done && c.jourPostOpRef !== null && (currentPatient.jourPostOp - c.jourPostOpRef > 3);
@@ -560,7 +679,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
 
         {/* MESSAGES TAB */}
         {activeTab === 'messages' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-[420px]">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-[320px] sm:h-[420px]">
             <div className="flex-1 overflow-y-auto bg-slate-50 p-5 rounded-2xl mb-3.5 border border-border flex flex-col gap-2.5">
               {currentPatient.messages.length === 0 ? (
                 <p className="text-center text-text-muted mt-10 font-medium">Aucun message échangé avec {currentPatient.name.split(' ')[0]}.</p>
@@ -743,18 +862,74 @@ export default function PatientDetail({ currentPatient, onBack }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <h3 className="text-[17px] font-bold text-text-dark">Suivi photographique</h3>
-              {currentPatient.photos.length >= 2 && (
-                <button
-                  onClick={() => { setCompareMode(m => !m); setCompareIds([]); }}
-                  className={`flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl text-[13px] font-bold border-none cursor-pointer transition-colors
-                    ${compareMode ? 'bg-primary text-white' : 'bg-slate-100 text-text-muted hover:bg-slate-200'}`}>
-                  <Columns size={15} /> {compareMode ? 'Quitter comparaison' : 'Comparer'}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {currentPatient.photos.length >= 2 && (
+                  <button
+                    onClick={() => { setCompareMode(m => !m); setCompareIds([]); }}
+                    className={`flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl text-[13px] font-bold border-none cursor-pointer transition-colors
+                      ${compareMode ? 'bg-primary text-white' : 'bg-slate-100 text-text-muted hover:bg-slate-200'}`}>
+                    <Columns size={15} /> {compareMode ? 'Quitter comparaison' : 'Comparer'}
+                  </button>
+                )}
+                <label
+                  htmlFor="staff-photo-upload"
+                  className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-xl text-[13px] font-bold bg-primary-light text-primary hover:bg-primary/10 cursor-pointer transition-colors"
+                >
+                  <Camera size={14} /> Ajouter une photo
+                </label>
+              </div>
             </div>
 
+            {/* Staff upload form */}
+            {photoFile && (
+              <div className="mb-5 p-4 bg-slate-50 border border-border rounded-xl flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-primary-light flex items-center justify-center shrink-0">
+                    <ImageIcon size={20} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-bold text-text-dark truncate">{photoFile.name}</p>
+                    <p className="text-[11px] text-text-muted">{(photoFile.size / 1024).toFixed(0)} Ko</p>
+                  </div>
+                  <button onClick={() => { setPhotoFile(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
+                    className="p-1.5 text-text-muted hover:text-red-500 bg-transparent border-none cursor-pointer rounded-lg hover:bg-red-50 transition-colors">
+                    <X size={15} />
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={photoNote}
+                  onChange={e => setPhotoNote(e.target.value)}
+                  placeholder="Note / description (optionnel)…"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-[13px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+                />
+                <button
+                  onClick={handlePhotoUpload}
+                  disabled={photoUploading}
+                  className="flex items-center justify-center gap-2 py-2.5 bg-primary hover:bg-primary-dark text-white border-none rounded-xl font-bold text-[13px] cursor-pointer disabled:opacity-60 transition-colors shadow-sm"
+                >
+                  {photoUploading ? <><Loader2 size={14} className="animate-spin" /> Envoi en cours…</> : <><Upload size={14} /> Enregistrer la photo</>}
+                </button>
+              </div>
+            )}
+
+            {/* Hidden file inputs */}
+            <input
+              ref={photoInputRef}
+              id="staff-photo-upload"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={e => { if (e.target.files?.[0]) setPhotoFile(e.target.files[0]); }}
+            />
+
             {currentPatient.photos.length === 0 ? (
-              <div className="p-10 bg-slate-50 rounded-2xl text-center text-text-muted font-medium border border-border">Le patient n'a pas encore partagé de photos.</div>
+              <div className="p-10 bg-slate-50 rounded-2xl text-center text-text-muted font-medium border border-border">
+                <Camera size={28} className="mx-auto mb-3 opacity-30" />
+                <p>Aucune photo dans le dossier.</p>
+                <p className="text-[12px] mt-1">Utilisez "Ajouter une photo" ou invitez le patient à partager les siennes.</p>
+              </div>
             ) : (
               <>
                 {/* Panneau de comparaison côte à côte */}
@@ -781,7 +956,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
                   </p>
                 )}
 
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3.5">
                   {currentPatient.photos.map((photo, i) => {
                     const isSelected = compareIds.includes(photo.id);
                     const selIdx = compareIds.indexOf(photo.id);
@@ -971,16 +1146,27 @@ function PhotoCard({ photo }) {
     });
   }, [photo.storage_path]);
 
+  // Determine if label is a note (not just a day label)
+  const dayLabel = photo.jour != null ? `J+${photo.jour}` : null;
+  const hasNote = photo.label && photo.label !== dayLabel;
+
   return (
-    <div className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-primary-light to-accent/20 relative overflow-hidden border border-primary/20 shadow-sm">
-      {url ? (
-        <img src={url} alt={photo.label} className="w-full h-full object-cover" />
-      ) : (
-        <div className="text-4xl opacity-15 absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2">📷</div>
-      )}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary/90 to-transparent pt-8 pb-3.5 px-3 text-white">
-        <div className="text-sm font-bold tracking-wide">{photo.label || `J+${photo.jour}`}</div>
+    <div className="rounded-2xl bg-gradient-to-br from-primary-light to-accent/20 border border-primary/20 shadow-sm overflow-hidden">
+      <div className="aspect-[3/4] relative">
+        {url ? (
+          <img src={url} alt={photo.label} className="w-full h-full object-cover" />
+        ) : (
+          <div className="text-4xl opacity-15 absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2">📷</div>
+        )}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary/90 to-transparent pt-8 pb-3 px-3 text-white">
+          <div className="text-[12px] font-bold tracking-wide">{dayLabel || 'Photo'}</div>
+        </div>
       </div>
+      {hasNote && (
+        <div className="px-3 py-2 bg-white border-t border-primary/10">
+          <p className="text-[11px] text-text-muted font-medium leading-snug line-clamp-2">{photo.label}</p>
+        </div>
+      )}
     </div>
   );
 }

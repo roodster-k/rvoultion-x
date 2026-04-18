@@ -51,11 +51,15 @@ export function DataProvider({ children }) {
   }, [patientCtx, alertCtx, toast]);
 
   // Bridge: addPhoto with alert side-effect
-  const addPhoto = useCallback((patientId, photoLabel) => {
+  // options: { file, note } or legacy string label
+  const addPhoto = useCallback(async (patientId, options) => {
     const patient = patientCtx.getPatientById(patientId);
     if (patient) alertCtx.pushPhotoAlert(patient.name, patientId);
-    patientCtx.addPhoto(patientId, photoLabel);
-  }, [patientCtx, alertCtx]);
+    const result = await patientCtx.addPhoto(patientId, options);
+    if (result?.error) toast('Erreur lors de l\'ajout de la photo.', 'error');
+    else toast('Photo ajoutée.', 'success');
+    return result;
+  }, [patientCtx, alertCtx, toast]);
 
   // Bridge: addNote with author name from current profile
   const addNote = useCallback(async (patientId, noteText) => {

@@ -6,8 +6,8 @@ import PatientPortalAuth from './pages/PatientPortalAuth.jsx';
 import PatientActivation from './pages/PatientActivation.jsx';
 import StaffActivation from './pages/StaffActivation.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-import SignupClinic from './pages/SignupClinic.jsx';
-import LandingPage from './pages/LandingPage.jsx';
+import AdminPanel from './pages/AdminPanel.jsx';
+import ProtocolTemplates from './pages/ProtocolTemplates.jsx';
 import { useAuth } from './context/AuthContext';
 
 function ConnectionErrorScreen() {
@@ -38,7 +38,7 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f5f54] via-[#0a4038] to-[#083830]">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent inline-flex items-center justify-center text-white text-2xl font-extrabold mb-4 shadow-lg">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0f5f54] to-[#10b981] inline-flex items-center justify-center text-white text-2xl font-extrabold mb-4 shadow-lg">
           +
         </div>
         <div className="text-white/80 text-sm font-medium tracking-wide">Chargement…</div>
@@ -58,38 +58,65 @@ function App() {
         <LoadingScreen />
       ) : (
         <Routes>
-          {/* ─── Always public ─── */}
-          <Route path="/" element={<LandingPage />} />
+          {/* ─── Toujours public ─── */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={
+            user
+              ? isPatient
+                ? <Navigate to="/patient/portal" replace />
+                : user?.role === 'super_admin'
+                  ? <Navigate to="/admin" replace />
+                  : <Navigate to="/dashboard" replace />
+              : <LoginPage />
+          } />
 
-          {/* ─── Patient routes (token or magic-link auth) ─── */}
-          <Route path="/patient/:token" element={<PatientPortal />} />
+          {/* ─── Activation (liens magic link email) ─── */}
           <Route path="/patient/activate" element={<PatientActivation />} />
-          <Route path="/patient/portal" element={<PatientPortalAuth />} />
-
-          {/* ─── Staff activation (post-invitation email link) ─── */}
           <Route path="/staff/activate" element={<StaffActivation />} />
 
-          {/* ─── Auth-dependent routes ─── */}
-          {user ? (
-            isPatient ? (
-              <>
-                <Route path="/dashboard" element={<Navigate to="/patient/portal" replace />} />
-                <Route path="*" element={<Navigate to="/patient/portal" replace />} />
-              </>
-            ) : (
-              <>
-                <Route path="/dashboard/*" element={<NurseDashboard />} />
-                <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/signup" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </>
-            )
+          {/* ─── Portail patient (token legacy) ─── */}
+          <Route path="/patient/:token" element={<PatientPortal />} />
+
+          {/* ─── Portail patient auth ─── */}
+          <Route path="/patient/portal" element={<PatientPortalAuth />} />
+
+          {/* ─── Routes staff (authentifié, non patient) ─── */}
+          {user && !isPatient ? (
+            <>
+              <Route path="/admin" element={
+                user?.role === 'super_admin'
+                  ? <AdminPanel />
+                  : <Navigate to="/dashboard" replace />
+              } />
+              <Route path="/dashboard/*" element={
+                user?.role === 'super_admin'
+                  ? <Navigate to="/admin" replace />
+                  : <NurseDashboard />
+              } />
+              <Route path="/protocols" element={
+                user?.role === 'clinic_admin' || user?.role === 'super_admin' || user?.role === 'surgeon'
+                  ? <ProtocolTemplates />
+                  : <Navigate to="/dashboard" replace />
+              } />
+              <Route path="*" element={
+                <Navigate to={user?.role === 'super_admin' ? '/admin' : '/dashboard'} replace />
+              } />
+            </>
+          ) : user && isPatient ? (
+            <>
+              <Route path="/dashboard" element={<Navigate to="/patient/portal" replace />} />
+              <Route path="*" element={<Navigate to="/patient/portal" replace />} />
+            </>
           ) : (
             <>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/signup" element={<SignupClinic />} />
               <Route path="/dashboard/*" element={<Navigate to="/login" replace />} />
+              <Route path="/admin" element={<Navigate to="/login" replace />} />
             </>
+          )}
+
+          {/* ─── Route /signup désactivée en Option B ─── */}
+          {import.meta.env.DEV && (
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
           )}
         </Routes>
       )}

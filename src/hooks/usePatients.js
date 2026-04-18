@@ -373,38 +373,59 @@ export default function usePatients() {
     }
   }, [profile, fetchPatients]);
 
-  // addPhoto using simulated upload or inserting into V2 photos tracking table
-  const addPhoto = useCallback(async (patientId, photoLabel) => {
+  // addPhoto — real file upload to Supabase Storage + optional note
+  // Accepts: (patientId, { file, note }) or legacy (patientId, labelString)
+  const addPhoto = useCallback(async (patientId, options) => {
     if (!profile) return;
 
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return;
     const jour = patient.jourPostOp || 0;
 
-    // Optimistic update
+    // Support legacy string call and new object call
+    const isLegacy = typeof options === 'string';
+    const file = isLegacy ? null : options?.file ?? null;
+    const note = isLegacy ? options : (options?.note ?? `J+${jour}`);
+
+    let storagePath = null;
+
+    if (file) {
+      const ext = file.name.split('.').pop().toLowerCase() || 'jpg';
+      const fileName = `${patientId}/${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('patient-photos')
+        .upload(fileName, file, { contentType: file.type, upsert: false });
+      if (uploadError) {
+        console.error('[addPhoto] Upload error:', uploadError);
+        return { error: uploadError };
+      }
+      storagePath = uploadData.path;
+    }
+
+    const { data: inserted, error } = await supabase.from('photos').insert({
+      patient_id: patientId,
+      clinic_id: profile.clinic_id,
+      label: note || `J+${jour}`,
+      jour_post_op: jour,
+      storage_path: storagePath,
+      uploaded_by: 'nurse',
+      uploader_id: profile.id,
+    }).select('id, jour_post_op, label, storage_path').single();
+
+    if (error) {
+      console.error('[addPhoto] DB error:', error);
+      return { error };
+    }
+
+    // Optimistic: add to local state
     setPatients(prev => prev.map(p =>
       p.id === patientId
-        ? { ...p, photos: [...p.photos, { jour, label: photoLabel }] }
+        ? { ...p, photos: [...p.photos, { id: inserted.id, jour: inserted.jour_post_op, label: inserted.label, storage_path: inserted.storage_path }] }
         : p
     ));
 
-    // Note: since this is simulated in nurse view (no actual file), we just create the DB record
-    const { error } = await supabase.from('photos').insert({
-      patient_id: patientId,
-      clinic_id: profile.clinic_id,
-      label: photoLabel,
-      jour_post_op: jour,
-      storage_path: null, // Removed hardcoded 'simulated/path.jpg'
-      uploaded_by: 'nurse',
-      uploader_id: profile.id
-    });
-
-    if (error) {
-      console.error('[addPhoto] Error:', error);
-      alert("Erreur lors de l'ajout de la photo.");
-      fetchPatients();
-    }
-  }, [patients, profile, fetchPatients]);
+    return { success: true };
+  }, [patients, profile]);
 
   const addNote = useCallback(async (patientId, noteText, authorName = 'Équipe') => {
     const patient = patients.find(p => p.id === patientId);
