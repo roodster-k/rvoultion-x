@@ -33,6 +33,7 @@ export default function PatientPortalAuth() {
   const messagesEndRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [photoNote, setPhotoNote] = useState('');
   const [submittingPain, setSubmittingPain] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSendError, setMessageSendError] = useState(null);
@@ -350,7 +351,7 @@ export default function PatientPortalAuth() {
         patient_id: patient.id,
         clinic_id: patient.clinic_id,
         storage_path: storagePath,
-        label: `Photo J+${jourPostOp}`,
+        label: photoNote.trim() ? `${photoNote.trim()} (J+${jourPostOp})` : `Photo J+${jourPostOp}`,
         jour_post_op: jourPostOp,
         uploaded_by: 'patient',
         uploader_id: patient.id,
@@ -368,6 +369,7 @@ export default function PatientPortalAuth() {
       });
 
       setUploadSuccess(true);
+      setPhotoNote('');
       await fetchData();
       setTimeout(() => setUploadSuccess(false), 3000);
     } catch (err) {
@@ -968,6 +970,22 @@ export default function PatientPortalAuth() {
                 <p className="text-[13px] text-text-muted mb-5 leading-relaxed font-medium text-center">
                   Photographiez la zone concernée pour permettre à votre chirurgien de contrôler l'évolution.
                 </p>
+
+                {/* Optional note */}
+                <div className="mb-4">
+                  <label className="block text-[13px] font-bold text-text-muted mb-1.5">
+                    Note (optionnelle)
+                  </label>
+                  <input
+                    type="text"
+                    value={photoNote}
+                    onChange={e => setPhotoNote(e.target.value)}
+                    placeholder="Ex : cicatrice côté droit, gonflement..."
+                    disabled={isUploading}
+                    maxLength={80}
+                    className="w-full border border-border rounded-xl px-4 py-2.5 text-[14px] outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 disabled:opacity-50"
+                  />
+                </div>
 
                 {/* Two distinct buttons */}
                 <div className="flex gap-3">

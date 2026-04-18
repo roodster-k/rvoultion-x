@@ -1,5 +1,5 @@
 import NavItem from './NavItem';
-import { LayoutDashboard, Users, Bell, LogOut, Settings, BarChart2, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Users, Bell, LogOut, Settings, BarChart2, CalendarDays, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAlertContext } from '../context/AlertContext';
 
@@ -62,6 +62,12 @@ export default function Sidebar({
         <NavItem icon={<BarChart2 size={20} />} label="Analytique" active={activeView === 'analytics'} onClick={() => {
           setSelectedPatientId(null);
           setActiveView('analytics');
+          setSidebarOpen(false);
+        }} />
+
+        <NavItem icon={<Activity size={20} />} label="Activité" active={activeView === 'activity'} onClick={() => {
+          setSelectedPatientId(null);
+          setActiveView('activity');
           setSidebarOpen(false);
         }} />
 

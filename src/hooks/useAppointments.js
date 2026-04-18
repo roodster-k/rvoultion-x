@@ -117,6 +117,15 @@ export default function useAppointments() {
       console.warn('[useAppointments] Could not send reminder message:', msgErr);
     }
 
+    // Insert activity alert for the clinic feed
+    supabase.from('alerts').insert({
+      clinic_id: profile.clinic_id,
+      patient_id: patientId,
+      type: 'action',
+      title: 'RDV planifié',
+      message: `"${title}" planifié pour ${data.patients?.full_name || 'un patient'}.`,
+    }).catch(() => {});
+
     return { data };
   }, [profile]);
 

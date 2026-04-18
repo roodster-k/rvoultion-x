@@ -7,6 +7,7 @@ import PatientList from '../components/PatientList';
 import PatientDetail from '../components/PatientDetail';
 import AddPatientModal from '../components/AddPatientModal';
 import AlertCenter from '../components/AlertCenter';
+import ActivityFeed from '../components/ActivityFeed';
 import Settings from './Settings';
 import AnalyticsDashboard from '../components/AnalyticsDashboard';
 import AgendaView from '../components/AgendaView';
@@ -92,6 +93,17 @@ export default function NurseDashboard() {
       {/* Sidebar overlay for mobile */}
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 md:hidden" />}
 
+      {/* Fixed hamburger — always visible on mobile when sidebar is closed */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="fixed bottom-5 left-4 z-[998] md:hidden w-12 h-12 bg-primary text-white rounded-2xl shadow-lg flex items-center justify-center border-none cursor-pointer hover:bg-primary-dark transition-colors"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={22} />
+        </button>
+      )}
+
       {/* FIX: Now passing sidebarOpen prop to Sidebar */}
       <Sidebar 
         activeView={activeView} setActiveView={setActiveView}
@@ -108,6 +120,8 @@ export default function NurseDashboard() {
           <Settings />
         ) : activeView === 'alerts' && !currentPatient ? (
           <AlertCenter onSelectPatient={handleSelectPatient} />
+        ) : activeView === 'activity' && !currentPatient ? (
+          <ActivityFeed onSelectPatient={handleSelectPatient} />
         ) : activeView === 'analytics' && !currentPatient ? (
           <AnalyticsDashboard onSelectPatient={handleSelectPatient} />
         ) : activeView === 'agenda' && !currentPatient ? (

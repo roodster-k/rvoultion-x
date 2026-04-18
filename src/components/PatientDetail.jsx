@@ -266,7 +266,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
 
       {/* Print-only report (off-screen, used for PDF export via html2pdf) */}
       <div style={{ position: 'absolute', left: '-9999px', top: 0, width: '794px', pointerEvents: 'none', zIndex: -1 }}>
-        <PrintReport patient={currentPatient} ref={printReportRef} />
+        <PrintReport patient={currentPatient} appointments={patientAppts} medications={patientMeds} ref={printReportRef} />
       </div>
 
       {/* Patient Info Card */}
@@ -996,7 +996,7 @@ export default function PatientDetail({ currentPatient, onBack }) {
 }
 
 // ─── Print-only patient report ───
-const PrintReport = forwardRef(function PrintReport({ patient }, ref) {
+const PrintReport = forwardRef(function PrintReport({ patient, appointments, medications }, ref) {
   const notes = Array.isArray(patient.notes) ? patient.notes : [];
   const doneTasks = patient.checklist?.filter(t => t.done) || [];
   const pendingTasks = patient.checklist?.filter(t => !t.done) || [];
@@ -1104,6 +1104,75 @@ const PrintReport = forwardRef(function PrintReport({ patient }, ref) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Appointments */}
+      {appointments?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f5f54', marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>
+            Rendez-vous ({appointments.length})
+          </div>
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                {['Titre', 'Date', 'Lieu', 'Statut'].map(h => (
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[...appointments].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)).map((appt, i) => {
+                const dt = new Date(appt.scheduledAt);
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '5px 8px', fontWeight: 600 }}>{appt.title}</td>
+                    <td style={{ padding: '5px 8px' }}>
+                      {dt.toLocaleDateString('fr-BE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {' '}
+                      {dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td style={{ padding: '5px 8px', color: '#64748b' }}>{appt.location || '—'}</td>
+                    <td style={{ padding: '5px 8px', color: appt.done ? '#10b981' : '#64748b', fontWeight: appt.done ? 700 : 400 }}>
+                      {appt.done ? 'Effectué' : 'Planifié'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Medications */}
+      {medications?.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#0f5f54', marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>
+            Traitements prescrits ({medications.length})
+          </div>
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                {['Médicament', 'Dosage', 'Fréquence', 'Durée', 'Notes'].map(h => (
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {medications.map((med, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '5px 8px', fontWeight: 600 }}>{med.name}</td>
+                  <td style={{ padding: '5px 8px', color: '#64748b' }}>{med.dosage || '—'}</td>
+                  <td style={{ padding: '5px 8px', color: '#64748b' }}>{med.frequency || '—'}</td>
+                  <td style={{ padding: '5px 8px', color: '#64748b' }}>
+                    {med.start_day != null ? `J+${med.start_day}` : '—'}
+                    {med.end_day != null ? ` → J+${med.end_day}` : ''}
+                  </td>
+                  <td style={{ padding: '5px 8px', color: '#94a3b8', fontSize: 11 }}>{med.notes || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

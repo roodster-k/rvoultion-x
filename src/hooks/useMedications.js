@@ -62,7 +62,17 @@ export default function useMedications(patientId = null) {
       .select('*, prescribed_by_user:prescribed_by(full_name, role)')
       .single();
 
-    if (!error) setMedications(prev => [...prev, data].sort((a, b) => (a.start_day ?? 0) - (b.start_day ?? 0)));
+    if (!error) {
+      setMedications(prev => [...prev, data].sort((a, b) => (a.start_day ?? 0) - (b.start_day ?? 0)));
+      // Insert activity alert for the clinic feed
+      supabase.from('alerts').insert({
+        clinic_id: profile.clinic_id,
+        patient_id: pid,
+        type: 'action',
+        title: 'Traitement prescrit',
+        message: `"${name.trim()}" prescrit.`,
+      }).catch(() => {});
+    }
     return { data, error };
   }, [profile]);
 
