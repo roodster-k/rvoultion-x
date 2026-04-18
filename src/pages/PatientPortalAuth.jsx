@@ -63,14 +63,34 @@ export default function PatientPortalAuth() {
     if (!authUser) return;
 
     try {
-      // Fetch patient record by auth_user_id
-      const { data: patientData, error: patientError } = await supabase
+      // Fetch patient record — primary: by auth_user_id (set after first login)
+      let { data: patientData } = await supabase
         .from('patients')
         .select('*')
         .eq('auth_user_id', authUser.id)
-        .single();
+        .maybeSingle();
 
-      if (patientError) throw patientError;
+      // Fallback: match by email for patients whose auth_user_id wasn't linked yet
+      // (edge case: link update failed or first login in progress)
+      if (!patientData && authUser?.email) {
+        const { data: byEmail } = await supabase
+          .from('patients')
+          .select('*')
+          .ilike('email', authUser.email)
+          .maybeSingle();
+        if (byEmail) {
+          patientData = byEmail;
+          // Attempt linking now (silently — will succeed once migration 024 is applied)
+          supabase.from('patients')
+            .update({ auth_user_id: authUser.id })
+            .eq('id', byEmail.id)
+            .then(({ error }) => {
+              if (error) console.error('[Portal] Deferred link failed:', error.message);
+            });
+        }
+      }
+
+      if (!patientData) throw new Error('Aucun dossier patient associé à ce compte.');
       setPatient(patientData);
 
       // Fetch related data in parallel

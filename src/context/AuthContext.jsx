@@ -77,13 +77,17 @@ export function AuthProvider({ children }) {
             .maybeSingle()
         );
         if (patientByEmail) {
-          // Link auth_user_id for future logins
-          await supabase
+          // Link auth_user_id for future logins (requires v24_patients_link_auth policy)
+          const { error: linkError } = await supabase
             .from('patients')
             .update({ auth_user_id: authUser.id })
             .eq('id', patientByEmail.id);
+          if (linkError) {
+            console.error('[Auth] Failed to link auth_user_id (RLS?):', linkError.message);
+          } else {
+            console.log('[Auth] Linked patient by email:', authUser.email);
+          }
           patientProfile = { ...patientByEmail, auth_user_id: authUser.id };
-          console.log('[Auth] Linked patient by email:', authUser.email);
         }
       }
 
