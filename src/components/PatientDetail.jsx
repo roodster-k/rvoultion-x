@@ -14,10 +14,10 @@ import useMedications from '../hooks/useMedications';
 import { supabase } from '../lib/supabase';
 
 export default function PatientDetail({ currentPatient, onBack }) {
-  const { toggleTask, addNote, addCustomTask, sendMessage, updatePatientStatus, invitePatient } = useData();
+  const { toggleTask, addNote, addCustomTask, sendMessage, updatePatientStatus, invitePatient, deletePatient, addPhoto } = useData();
   const { toast } = useToast();
   const { clearPatientAlerts } = useAlertContext();
-  const { profile } = useAuth();
+  const { profile, authUser } = useAuth();
 
   const [activeTab, setActiveTab] = useState('checklist');
   const [noteInput, setNoteInput] = useState('');
@@ -38,6 +38,48 @@ export default function PatientDetail({ currentPatient, onBack }) {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const printReportRef = useRef(null);
+
+  // ─── Delete patient confirmation ───
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDeleteConfirm = async () => {
+    if (!deletePassword.trim()) { setDeleteError('Mot de passe requis.'); return; }
+    setDeleteLoading(true);
+    setDeleteError('');
+    try {
+      // Verify password
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: authUser?.email,
+        password: deletePassword,
+      });
+      if (authError) { setDeleteError('Mot de passe incorrect.'); setDeleteLoading(false); return; }
+
+      // Delete patient
+      const result = await deletePatient(currentPatient.id);
+      if (result?.error) { setDeleteError('Erreur lors de la suppression.'); setDeleteLoading(false); return; }
+
+      // Notify team by email (fire-and-forget)
+      supabase.functions.invoke('notify-team-deletion', {
+        body: {
+          patient_name: currentPatient.name,
+          deleted_by_name: profile?.full_name || 'Un membre de l\'équipe',
+          deleted_by_email: authUser?.email,
+          clinic_id: profile?.clinic_id,
+        },
+      }).catch(() => {});
+
+      toast(`Dossier de ${currentPatient.name} supprimé.`, 'success');
+      setShowDeleteModal(false);
+      onBack();
+    } catch (err) {
+      console.error('[handleDeleteConfirm]', err);
+      setDeleteError('Une erreur est survenue.');
+      setDeleteLoading(false);
+    }
+  };
 
   // ─── Assign Protocol ───
   const [showAssignProtocol, setShowAssignProtocol] = useState(false);
@@ -245,6 +287,55 @@ export default function PatientDetail({ currentPatient, onBack }) {
         }
       `}</style>
 
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-[17px] text-text-main">Supprimer le dossier ?</h3>
+                <p className="text-[13px] text-text-muted mt-0.5">Cette action est irréversible.</p>
+              </div>
+            </div>
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-[13px] text-red-700">
+              Le dossier de <strong>{currentPatient.name}</strong> ainsi que toutes les données associées (messages, photos, tâches) seront définitivement supprimés. Vos collègues seront notifiés par email.
+            </div>
+            <label className="block text-[13px] font-semibold text-text-main mb-1.5">
+              Confirmez votre mot de passe
+            </label>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={e => { setDeletePassword(e.target.value); setDeleteError(''); }}
+              onKeyDown={e => e.key === 'Enter' && handleDeleteConfirm()}
+              placeholder="Votre mot de passe"
+              autoFocus
+              className="w-full border border-border rounded-xl px-4 py-2.5 text-[14px] mb-1 outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+            />
+            {deleteError && <p className="text-[12px] text-red-600 mb-3">{deleteError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 rounded-xl border border-border text-[13px] font-semibold text-text-muted hover:bg-slate-50 transition-colors disabled:opacity-60"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleteLoading || !deletePassword.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[13px] font-bold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {deleteLoading ? <><Loader2 size={15} className="animate-spin" /> Suppression...</> : <><Trash2 size={15} /> Supprimer définitivement</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TopBar */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-2.5 no-print">
         <button onClick={onBack} className="bg-primary-light text-primary hover:bg-[#d0ece8] border-none cursor-pointer font-semibold text-sm flex items-center gap-1.5 py-2 px-4 rounded-xl transition-colors">
@@ -261,6 +352,13 @@ export default function PatientDetail({ currentPatient, onBack }) {
           <Link to={`/patient/${currentPatient.token}`} target="_blank" className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-dark py-2 px-4 rounded-xl no-underline transition-colors shadow-sm">
             Simuler App Patient ↗
           </Link>
+          <button
+            onClick={() => { setShowDeleteModal(true); setDeletePassword(''); setDeleteError(''); }}
+            className="flex items-center gap-1.5 text-[13px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 py-2 px-4 rounded-xl transition-colors shadow-sm"
+            title="Supprimer le dossier"
+          >
+            <Trash2 size={15} /> Supprimer
+          </button>
         </div>
       </div>
 

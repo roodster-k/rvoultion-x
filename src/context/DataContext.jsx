@@ -74,6 +74,11 @@ export function DataProvider({ children }) {
     if (result?.error) toast('Erreur lors de la mise à jour du statut.', 'error');
   }, [patientCtx, toast]);
 
+  // Bridge: deletePatient
+  const deletePatient = useCallback(async (patientId) => {
+    return patientCtx.deletePatient(patientId);
+  }, [patientCtx]);
+
   // Bridge: toggleTask with toast on error
   const toggleTaskWithToast = useCallback(async (patientId, taskId, isPatientAction = false) => {
     const patient = patientCtx.getPatientById(patientId);
@@ -98,6 +103,7 @@ export function DataProvider({ children }) {
       addPatient: patientCtx.addPatient,
       updatePatientStatus,
       invitePatient: patientCtx.invitePatient,
+      deletePatient,
       // Alert data
       alerts: alertCtx.alerts,
       setAlerts: alertCtx.setAlerts,

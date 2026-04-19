@@ -264,6 +264,58 @@ export default function usePatients() {
     return () => { supabase.removeChannel(channel); };
   }, [profile?.clinic_id]);
 
+  // ─── Realtime: photos ───
+  useEffect(() => {
+    if (!profile?.clinic_id) return;
+
+    const channel = supabase
+      .channel(`photos:clinic:${profile.clinic_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'photos',
+        filter: `clinic_id=eq.${profile.clinic_id}`,
+      }, (payload) => {
+        const p = payload.new;
+        setPatients(prev => prev.map(patient => {
+          if (patient.id !== p.patient_id) return patient;
+          if (patient.photos.some(photo => photo.id === p.id)) return patient;
+          return {
+            ...patient,
+            photos: [...patient.photos, {
+              id: p.id,
+              jour: p.jour_post_op,
+              label: p.label,
+              storage_path: p.storage_path,
+            }],
+          };
+        }));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.clinic_id]);
+
+  // ─── Realtime: alerts (for notification center auto-refresh) ───
+  useEffect(() => {
+    if (!profile?.clinic_id) return;
+
+    const channel = supabase
+      .channel(`alerts:clinic:${profile.clinic_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'alerts',
+        filter: `clinic_id=eq.${profile.clinic_id}`,
+      }, () => {
+        // Trigger a refetch so AlertContext picks up the new alert
+        // AlertContext listens to this separately; here we just ensure patients are fresh
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.clinic_id]);
+
   // ==========================================
   // MUTATIONS — Write to Supabase V2 + optimistic UI
   // ==========================================
@@ -486,6 +538,27 @@ export default function usePatients() {
     ));
     return { data: { ok: true } };
   }, [patients]);
+
+  const deletePatient = useCallback(async (patientId) => {
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return { error: new Error('Patient non trouvé') };
+
+    // Optimistic remove
+    setPatients(prev => prev.filter(p => p.id !== patientId));
+
+    const { error } = await supabase
+      .from('patients')
+      .delete()
+      .eq('id', patientId);
+
+    if (error) {
+      console.error('[deletePatient] Error:', error);
+      fetchPatients(); // Rollback
+      return { error };
+    }
+
+    return { success: true, patient };
+  }, [patients, fetchPatients]);
 
   const submitPainScore = useCallback(async (patientId, score, jour_post_op, notes = null) => {
     if (!profile) return;
@@ -715,6 +788,7 @@ export default function usePatients() {
     addPhoto,
     addNote,
     addPatient,
+    deletePatient,
     submitPainScore,
     updatePatientStatus,
     invitePatient,
