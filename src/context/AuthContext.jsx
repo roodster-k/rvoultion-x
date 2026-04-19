@@ -124,18 +124,24 @@ export function AuthProvider({ children }) {
     const initialize = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
+
         if (sessionError) {
           console.error('[Auth] getSession error:', sessionError);
         }
 
         if (mounted && session?.user) {
           console.log('[Auth] Existing session found for:', session.user.email);
-          if (currentUserIdRef.current !== session.user.id) {
-            currentUserIdRef.current = session.user.id;
-            setUser(session.user);
+
+          // Force a token refresh to pick up the new 3600s JWT expiry
+          // (old tokens may have been issued with the previous 300s expiry)
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          const activeSession = refreshed?.session ?? session;
+
+          if (currentUserIdRef.current !== activeSession.user.id) {
+            currentUserIdRef.current = activeSession.user.id;
+            setUser(activeSession.user);
           }
-          await fetchProfile(session.user);
+          await fetchProfile(activeSession.user);
         } else {
           // No session, stop loading
           setLoading(false);

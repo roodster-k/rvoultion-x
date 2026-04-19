@@ -88,17 +88,19 @@ export default function PatientActivation() {
       }
 
       // 2. Find patient by email (case-insensitive) where not yet linked.
-      //    Requires v19_patients_select_by_email_activation policy.
-      const { data: patient, error: patientError } = await supabase
+      //    Use .limit(1) instead of .maybeSingle() to safely handle duplicate emails.
+      const { data: patients, error: patientError } = await supabase
         .from('patients')
         .select('id, full_name')
-        .ilike('email', authUser.email)   // case-insensitive email match
+        .ilike('email', authUser.email)
         .is('auth_user_id', null)
-        .maybeSingle();
+        .limit(1);
 
       if (patientError) {
         throw new Error(`Erreur de recherche du dossier : ${patientError.message}`);
       }
+
+      const patient = patients?.[0] ?? null;
 
       if (!patient) {
         throw new Error('Aucun dossier patient trouvé pour cette adresse email. Veuillez contacter la clinique.');

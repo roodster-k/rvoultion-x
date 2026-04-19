@@ -93,8 +93,8 @@ export default function NurseDashboard() {
       {/* Sidebar overlay for mobile */}
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/30 backdrop-blur-[2px] z-40 md:hidden" />}
 
-      {/* Fixed hamburger — always visible on mobile when sidebar is closed */}
-      {!sidebarOpen && (
+      {/* Fixed hamburger — only on views that don't already have one in their header */}
+      {!sidebarOpen && (currentPatient || (activeView !== 'dashboard' && activeView !== 'patients')) && (
         <button
           onClick={() => setSidebarOpen(true)}
           className="fixed bottom-5 left-4 z-[998] md:hidden w-12 h-12 bg-primary text-white rounded-2xl shadow-lg flex items-center justify-center border-none cursor-pointer hover:bg-primary-dark transition-colors"
